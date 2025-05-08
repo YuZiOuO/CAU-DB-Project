@@ -6,4 +6,4 @@ Flask-CORS==4.0.0
 python-dotenv==1.0.1
 Werkzeug==2.3.7
 SQLAlchemy==2.0.25
-psycopg2-binary==2.9.9
+pg8000==1.30.3
