@@ -4,25 +4,18 @@
 namespace Entity {
   interface User {
     /** 用户id */
-    id?: number
+    user_id: number
     /** 用户名 */
-    userName?: string
-    /* 用户头像 */
-    avatar?: string
-    /* 用户性别 */
-    gender?: 0 | 1
+    name: string
+    /** 用户地址 */
+    address: string
+    /** 用户电话 */
+    phone_number: string
     /* 用户邮箱 */
-    email?: string
-    /* 用户昵称 */
-    nickname?: string
-    /* 用户电话 */
-    tel?: string
+    email: string
     /** 用户角色类型 */
     role?: Entity.RoleType[]
-    /** 用户状态 */
-    status?: 0 | 1
-    /** 备注 */
-    remark?: string
+    /** 该管理员管理的门店id */
+    managed_store_id?: number
   }
-
 }

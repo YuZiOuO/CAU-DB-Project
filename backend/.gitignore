@@ -48,3 +48,6 @@ instance/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# dotenv
+.env
