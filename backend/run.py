@@ -1,5 +1,5 @@
 # Fall back to relative import (for direct script execution)
-from app import create_app, db
+from .app import create_app, db
 import os
 
 app = create_app(os.getenv('FLASK_ENV', 'development'))
@@ -7,7 +7,7 @@ app = create_app(os.getenv('FLASK_ENV', 'development'))
 @app.shell_context_processor
 def make_shell_context():
     """Make shell context for Flask CLI."""
-    from app.models.models import VehicleType, Vehicle, User, Store, Rental
+    from .app.models.models import VehicleType, Vehicle, User, Store, Rental
     return {
         'db': db,
         'VehicleType': VehicleType,
@@ -26,7 +26,7 @@ def init_db():
 @app.cli.command("create-admin")
 def create_admin():
     """Create an admin user."""
-    from app.models.models import User
+    from .app.models.models import User
     
     admin = User.query.filter_by(email='admin@example.com').first()
     if admin:

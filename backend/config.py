@@ -1,8 +1,12 @@
 import os
 from datetime import timedelta
 
+from dotenv import load_dotenv
+
+
 class Config:
     """Base configuration."""
+    load_dotenv()
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev_key_for_development')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'jwt_dev_key_for_development')
