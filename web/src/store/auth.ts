@@ -70,9 +70,9 @@ export const useAuthStore = defineStore('auth-store', {
     async handleLoginInfo(data: Api.Login.Info) {
       // 将token和userInfo保存下来
       local.set('userInfo', data)
-      local.set('accessToken', data.accessToken)
-      local.set('refreshToken', data.refreshToken)
-      this.token = data.accessToken
+      local.set('accessToken', data.access_token)
+      local.set('refreshToken', data.refresh_token)
+      this.token = data.access_token
       this.userInfo = data
 
       // 添加路由和菜单
