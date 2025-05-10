@@ -27,7 +27,7 @@ export function fetchUpdateToken(data: any) {
   return method
 }
 
-export function fetchRegiseter(data: Iregister) {
+export function fetchRegister(data: Iregister) {
   const methodInstance = request.Post<Service.ResponseResult<Api.Login.Info>>('/users/register', data)
   methodInstance.meta = {
     authRole: null,
