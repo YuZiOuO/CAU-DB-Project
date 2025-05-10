@@ -4,6 +4,13 @@ interface Ilogin {
   email: string
   password: string
 }
+interface Iregister {
+  name: string
+  email: string
+  password: string
+  address: string
+  phone_number: string
+}
 
 export function fetchLogin(data: Ilogin) {
   const methodInstance = request.Post<Service.ResponseResult<Api.Login.Info>>('/users/login', data)
@@ -18,6 +25,14 @@ export function fetchUpdateToken(data: any) {
     authRole: 'refreshToken',
   }
   return method
+}
+
+export function fetchRegiseter(data: Iregister) {
+  const methodInstance = request.Post<Service.ResponseResult<Api.Login.Info>>('/users/register', data)
+  methodInstance.meta = {
+    authRole: null,
+  }
+  return methodInstance
 }
 
 export function fetchUserRoutes(params: { id: number }) {
