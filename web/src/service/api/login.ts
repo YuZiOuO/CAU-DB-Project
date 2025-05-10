@@ -13,7 +13,7 @@ export function fetchLogin(data: Ilogin) {
   return methodInstance
 }
 export function fetchUpdateToken(data: any) {
-  const method = request.Post<Service.ResponseResult<Api.Login.Info>>('/updateToken', data)
+  const method = request.Post<Service.ResponseResult<Api.Login.Info>>('/users/refresh', data)
   method.meta = {
     authRole: 'refreshToken',
   }
