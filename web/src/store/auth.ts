@@ -1,5 +1,5 @@
 import { router } from '@/router'
-import { fetchLogin, fetchRegiseter } from '@/service'
+import { fetchLogin, fetchRegister } from '@/service'
 import { local } from '@/utils'
 import { useRouteStore } from './router'
 import { useTabStore } from './tab'
@@ -69,7 +69,7 @@ export const useAuthStore = defineStore('auth-store', {
     /* 用户注册 */
     async register(name: string, email: string, password: string, address: string, phone_number: string) {
       try {
-        const { isSuccess, data } = await fetchRegiseter({ name, email, password, address, phone_number })
+        const { isSuccess, data } = await fetchRegister({ name, email, password, address, phone_number })
         if (!isSuccess)
           return
 
