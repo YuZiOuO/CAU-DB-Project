@@ -1,5 +1,5 @@
 import { router } from '@/router'
-import { fetchLogin } from '@/service'
+import { fetchLogin, fetchRegister } from '@/service'
 import { local } from '@/utils'
 import { useRouteStore } from './router'
 import { useTabStore } from './tab'
@@ -52,9 +52,9 @@ export const useAuthStore = defineStore('auth-store', {
     },
 
     /* 用户登录 */
-    async login(userName: string, password: string) {
+    async login(email: string, password: string) {
       try {
-        const { isSuccess, data } = await fetchLogin({ userName, password })
+        const { isSuccess, data } = await fetchLogin({ email, password })
         if (!isSuccess)
           return
 
@@ -66,13 +66,27 @@ export const useAuthStore = defineStore('auth-store', {
       }
     },
 
+    /* 用户注册 */
+    async register(name: string, email: string, password: string, address: string, phone_number: string) {
+      try {
+        const { isSuccess, data } = await fetchRegister({ name, email, password, address, phone_number })
+        if (!isSuccess)
+          return
+
+        await this.handleLoginInfo(data)
+      }
+      catch (e) {
+        console.warn('[Register Error]:', e)
+      }
+    },
+
     /* 处理登录返回的数据 */
     async handleLoginInfo(data: Api.Login.Info) {
       // 将token和userInfo保存下来
       local.set('userInfo', data)
-      local.set('accessToken', data.accessToken)
-      local.set('refreshToken', data.refreshToken)
-      this.token = data.accessToken
+      local.set('accessToken', data.access_token)
+      local.set('refreshToken', data.refresh_token)
+      this.token = data.access_token
       this.userInfo = data
 
       // 添加路由和菜单

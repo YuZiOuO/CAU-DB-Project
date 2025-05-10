@@ -77,10 +77,10 @@ export async function handleRefreshToken() {
   }
 
   // 刷新token
-  const { data } = await fetchUpdateToken({ refreshToken: local.get('refreshToken') })
+  const { data } = await fetchUpdateToken({ refresh_token: local.get('refreshToken') })
   if (data) {
-    local.set('accessToken', data.accessToken)
-    local.set('refreshToken', data.refreshToken)
+    local.set('accessToken', data.access_token)
+    local.set('refreshToken', data.refresh_token)
   }
   else {
     // 刷新失败，退出

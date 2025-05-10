@@ -1,15 +1,43 @@
 <script setup lang="ts">
+import { useAuthStore } from '@/store'
+import type { FormInst } from 'naive-ui'
+
 const emit = defineEmits(['update:modelValue'])
 function toLogin() {
   emit('update:modelValue', 'login')
 }
 const { t } = useI18n()
+const authStore = useAuthStore()
+
+const formValue = ref({
+  account: '',
+  name: '',
+  address: '',
+  phone_number: '',
+  pwd: '',
+  rePwd: '',
+})
 
 const rules = {
   account: {
     required: true,
     trigger: 'blur',
     message: t('login.accountRuleTip'),
+  },
+  name: {
+    required: true,
+    trigger: 'blur',
+    message: t('login.nameRuleTip'),
+  },
+  address: {
+    required: true,
+    trigger: 'blur',
+    message: t('login.addressRuleTip'),
+  },
+  phone_number: {
+    required: true,
+    trigger: 'blur',
+    message: t('login.phoneNumberRuleTip'),
   },
   pwd: {
     required: true,
@@ -20,17 +48,31 @@ const rules = {
     required: true,
     trigger: 'blur',
     message: t('login.checkPasswordRuleTip'),
+    validator(rule: any, value: string) {
+      if (value !== formValue.value.pwd)
+        return new Error(t('login.checkPasswordRuleTip'))
+      return true
+    },
   },
 }
-const formValue = ref({
-  account: 'admin',
-  pwd: '000000',
-  rePwd: '000000',
-})
+
+const formRef = ref<FormInst | null>(null)
 
 const isRead = ref(false)
+const isLoading = ref(false)
 
-function handleRegister() {}
+function handleRegister() {
+  formRef.value?.validate(async (errors) => {
+    if (errors)
+      return
+
+    isLoading.value = true
+    const { name, account, pwd, address, phone_number } = formValue.value
+
+    await authStore.register(name, account, pwd, address, phone_number)
+    isLoading.value = false
+  })
+}
 </script>
 
 <template>
@@ -39,6 +81,7 @@ function handleRegister() {}
       {{ $t('login.registerTitle') }}
     </n-h2>
     <n-form
+      ref="formRef"
       :rules="rules"
       :model="formValue"
       :show-label="false"
@@ -49,6 +92,27 @@ function handleRegister() {}
           v-model:value="formValue.account"
           clearable
           :placeholder="$t('login.accountPlaceholder')"
+        />
+      </n-form-item>
+      <n-form-item path="name">
+        <n-input
+          v-model:value="formValue.name"
+          clearable
+          :placeholder="$t('login.namePlaceholder')"
+        />
+      </n-form-item>
+      <n-form-item path="address">
+        <n-input
+          v-model:value="formValue.address"
+          clearable
+          :placeholder="$t('login.addressPlaceholder')"
+        />
+      </n-form-item>
+      <n-form-item path="phone_number">
+        <n-input
+          v-model:value="formValue.phone_number"
+          clearable
+          :placeholder="$t('login.phoneNumberPlaceholder')"
         />
       </n-form-item>
       <n-form-item path="pwd">
@@ -100,6 +164,7 @@ function handleRegister() {}
           <n-button
             block
             type="primary"
+            :loading="isLoading" :disabled="isLoading"
             @click="handleRegister"
           >
             {{ $t('login.signUp') }}

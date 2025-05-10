@@ -23,7 +23,7 @@ const appName = import.meta.env.VITE_APP_NAME
       style="background: var(--card-color);box-shadow: var(--box-shadow-1);"
     >
       <div class="w-full flex flex-col items-center">
-        <SvgIconsLogo class="text-6em" />
+        <!-- <SvgIconsLogo class="text-6em" /> -->
         <n-h3>{{ appName }} </n-h3>
         <transition
           name="fade-slide"
