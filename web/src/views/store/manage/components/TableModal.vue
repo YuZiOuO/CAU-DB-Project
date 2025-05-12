@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { fetchCreateStores } from '@/service/api/stores'
+
 interface Props {
   visible: boolean
   type?: ModalType
@@ -11,11 +13,11 @@ const {
 } = defineProps<Props>()
 
 const emit = defineEmits<Emits>()
-const defaultFormModal: Entity.User = {
-  userName: '',
-  gender: 0,
-  email: '',
-  role: [],
+const defaultFormModal: Entity.Store = {
+  store_id: 0, // 懒得删了
+  store_name: '',
+  address: '',
+  phone_number: '',
 }
 const formModel = ref({ ...defaultFormModal })
 
@@ -37,8 +39,8 @@ function closeModal(visible = false) {
 type ModalType = 'add' | 'edit'
 const title = computed(() => {
   const titles: Record<ModalType, string> = {
-    add: '添加用户',
-    edit: '编辑用户',
+    add: '添加门店',
+    edit: '编辑门店',
   }
   return titles[type]
 })
@@ -62,6 +64,14 @@ watch(
       UpdateFormModelByModalType()
   },
 )
+
+const isLoading = ref(false)
+async function handleSubmit() {
+  isLoading.value = true
+  await fetchCreateStores(formModel.value)
+  isLoading.value = false
+  closeModal()
+}
 </script>
 
 <template>
@@ -78,26 +88,17 @@ watch(
   >
     <n-form label-placement="left" :model="formModel" label-align="left" :label-width="80">
       <n-grid :cols="24" :x-gap="18">
-        <n-form-item-grid-item :span="12" label="用户名" path="name">
-          <n-input v-model:value="formModel.userName" />
+        <n-form-item-grid-item :span="12" label="id" path="name">
+          <n-input-number v-model:value="formModel.store_id" :show-button="false" :disabled="true" />
         </n-form-item-grid-item>
-        <n-form-item-grid-item :span="12" label="年龄" path="age">
-          <n-input-number v-model:value="formModel.gender" />
+        <n-form-item-grid-item :span="12" label="名称" path="age">
+          <n-input v-model:value="formModel.store_name" />
         </n-form-item-grid-item>
-        <n-form-item-grid-item :span="12" label="性别" path="gender">
-          <n-radio-group v-model:value="formModel.gender">
-            <n-space>
-              <n-radio :value="1">
-                男
-              </n-radio>
-              <n-radio :value="0">
-                女
-              </n-radio>
-            </n-space>
-          </n-radio-group>
+        <n-form-item-grid-item :span="12" label="地址" path="gender">
+          <n-input v-model:value="formModel.address" />
         </n-form-item-grid-item>
-        <n-form-item-grid-item :span="12" label="邮箱" path="email">
-          <n-input v-model:value="formModel.email" />
+        <n-form-item-grid-item :span="12" label="电话" path="email">
+          <n-input v-model:value="formModel.phone_number" />
         </n-form-item-grid-item>
       </n-grid>
     </n-form>
@@ -106,7 +107,7 @@ watch(
         <n-button @click="closeModal()">
           取消
         </n-button>
-        <n-button type="primary">
+        <n-button type="primary" :loading="isLoading" @click="handleSubmit">
           提交
         </n-button>
       </n-space>

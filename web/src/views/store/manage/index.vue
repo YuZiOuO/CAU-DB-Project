@@ -2,9 +2,9 @@
 import type { DataTableColumns, FormInst } from 'naive-ui'
 import { Gender } from '@/constants'
 import { useBoolean } from '@/hooks'
-import { fetchUserPage } from '@/service'
 import { NButton, NPopconfirm, NSpace, NSwitch, NTag } from 'naive-ui'
 import TableModal from './components/TableModal.vue'
+import { fetchGetStores } from '@/service/api/stores'
 
 const { bool: loading, setTrue: startLoading, setFalse: endLoading } = useBoolean(false)
 const { bool: visible, setTrue: openModal } = useBoolean(false)
@@ -106,12 +106,12 @@ function handleUpdateDisabled(value: 0 | 1, id: number) {
 }
 
 onMounted(() => {
-  getUserList()
+  getStoreList()
 })
-async function getUserList() {
+async function getStoreList() {
   startLoading()
-  await fetchUserPage().then((res: any) => {
-    listData.value = res.data.list
+  await fetchGetStores().then((res: any) => {
+    listData.value = res.data
     endLoading()
   })
 }
