@@ -1,10 +1,9 @@
 <script setup lang="tsx">
 import type { DataTableColumns, FormInst } from 'naive-ui'
-import { Gender } from '@/constants'
 import { useBoolean } from '@/hooks'
-import { NButton, NPopconfirm, NSpace, NSwitch, NTag } from 'naive-ui'
+import { NButton, NPopconfirm, NSpace } from 'naive-ui'
 import TableModal from './components/TableModal.vue'
-import { fetchGetStores } from '@/service/api/stores'
+import { fetchDeleteStore, fetchGetStores } from '@/service/api/stores'
 
 const { bool: loading, setTrue: startLoading, setFalse: endLoading } = useBoolean(false)
 const { bool: visible, setTrue: openModal } = useBoolean(false)
@@ -18,60 +17,26 @@ const initialModel = {
 const model = ref({ ...initialModel })
 
 const formRef = ref<FormInst | null>()
-function sendMail(id?: number) {
-  window.$message.success(`删除用户id:${id}`)
+
+async function handleDelete(id: number) {
+  await fetchDeleteStore(String(id))
+  getStoreList()
 }
-const columns: DataTableColumns<Entity.User> = [
+const columns: DataTableColumns<Entity.Store> = [
   {
-    title: '姓名',
+    title: 'id',
     align: 'center',
-    key: 'userName',
+    key: 'store_id',
   },
   {
-    title: '年龄',
+    title: '名称',
     align: 'center',
-    key: 'age',
+    key: 'store_name',
   },
   {
-    title: '性别',
+    title: '地址',
     align: 'center',
-    key: 'gender',
-    render: (row) => {
-      const tagType = {
-        0: 'primary',
-        1: 'success',
-      } as const
-      if (row.gender) {
-        return (
-          <NTag type={tagType[row.gender]}>
-            {Gender[row.gender]}
-          </NTag>
-        )
-      }
-    },
-  },
-  {
-    title: '邮箱',
-    align: 'center',
-    key: 'email',
-  },
-  {
-    title: '状态',
-    align: 'center',
-    key: 'status',
-    render: (row) => {
-      return (
-        <NSwitch
-          value={row.status}
-          checked-value={1}
-          unchecked-value={0}
-          onUpdateValue={(value: 0 | 1) =>
-            handleUpdateDisabled(value, row.id!)}
-        >
-          {{ checked: () => '启用', unchecked: () => '禁用' }}
-        </NSwitch>
-      )
-    },
+    key: 'address',
   },
   {
     title: '操作',
@@ -86,7 +51,7 @@ const columns: DataTableColumns<Entity.User> = [
           >
             编辑
           </NButton>
-          <NPopconfirm onPositiveClick={() => sendMail(row.id)}>
+          <NPopconfirm onPositiveClick={() => handleDelete(row.store_id)}>
             {{
               default: () => '确认删除',
               trigger: () => <NButton size="small">删除</NButton>,
@@ -99,11 +64,6 @@ const columns: DataTableColumns<Entity.User> = [
 ]
 
 const listData = ref<Entity.User[]>([])
-function handleUpdateDisabled(value: 0 | 1, id: number) {
-  const index = listData.value.findIndex(item => item.id === id)
-  if (index > -1)
-    listData.value[index].status = value
-}
 
 onMounted(() => {
   getStoreList()
@@ -128,12 +88,12 @@ function setModalType(type: ModalType) {
   modalType.value = type
 }
 
-const editData = ref<Entity.User | null>(null)
-function setEditData(data: Entity.User | null) {
+const editData = ref<Entity.Store | null>(null)
+function setEditData(data: Entity.Store | null) {
   editData.value = data
 }
 
-function handleEditTable(row: Entity.User) {
+function handleEditTable(row: Entity.Store) {
   setEditData(row)
   setModalType('edit')
   openModal()
