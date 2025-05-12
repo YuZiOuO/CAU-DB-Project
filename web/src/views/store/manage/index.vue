@@ -9,10 +9,9 @@ const { bool: loading, setTrue: startLoading, setFalse: endLoading } = useBoolea
 const { bool: visible, setTrue: openModal } = useBoolean(false)
 
 const initialModel = {
-  condition_1: '',
-  condition_2: '',
-  condition_3: '',
-  condition_4: '',
+  condition_1: '', // 对应店铺名称
+  condition_2: '', // 对应店铺地址
+  condition_3: '', // 对应店铺电话
 }
 const model = ref({ ...initialModel })
 
@@ -39,6 +38,11 @@ const columns: DataTableColumns<Entity.Store> = [
     key: 'address',
   },
   {
+    title: '电话',
+    align: 'center',
+    key: 'phone_number',
+  },
+  {
     title: '操作',
     align: 'center',
     key: 'actions',
@@ -63,26 +67,67 @@ const columns: DataTableColumns<Entity.Store> = [
   },
 ]
 
-const listData = ref<Entity.User[]>([])
+const allStoresData = ref<Entity.Store[]>([])
+const displayData = ref<Entity.Store[]>([]) // 用于表格显示的数据，可能是过滤后的
 
 onMounted(() => {
   getStoreList()
 })
+
 async function getStoreList() {
   startLoading()
-  await fetchGetStores().then((res: any) => {
-    listData.value = res.data
+  try {
+    const res: any = await fetchGetStores()
+    allStoresData.value = res.data || []
+    displayData.value = [...allStoresData.value] // 初始显示所有数据
+  }
+  catch (error) {
+    console.error('Failed to fetch store list:', error)
+    allStoresData.value = []
+    displayData.value = []
+  }
+  finally {
     endLoading()
-  })
+  }
 }
+
+function handleFilter() {
+  let filteredData = [...allStoresData.value]
+
+  const nameFilter = model.value.condition_1.trim().toLowerCase()
+  const addressFilter = model.value.condition_2.trim().toLowerCase()
+  const phoneFilter = model.value.condition_3.trim().toLowerCase()
+
+  if (nameFilter) {
+    filteredData = filteredData.filter(store =>
+      store.store_name.toLowerCase().includes(nameFilter),
+    )
+  }
+
+  if (addressFilter) {
+    filteredData = filteredData.filter(store =>
+      store.address.toLowerCase().includes(addressFilter),
+    )
+  }
+
+  if (phoneFilter) {
+    filteredData = filteredData.filter(store =>
+      store.phone_number && store.phone_number.toLowerCase().includes(phoneFilter),
+    )
+  }
+
+  displayData.value = filteredData
+}
+
 function changePage(page: number, size: number) {
   window.$message.success(`分页器:${page},${size}`)
 }
 function handleResetSearch() {
   model.value = { ...initialModel }
+  displayData.value = [...allStoresData.value] // 重置为显示所有数据
 }
 
-  type ModalType = 'add' | 'edit'
+type ModalType = 'add' | 'edit'
 const modalType = ref<ModalType>('add')
 function setModalType(type: ModalType) {
   modalType.value = type
@@ -109,20 +154,17 @@ function handleAddTable() {
     <n-card>
       <n-form ref="formRef" :model="model" label-placement="left" inline :show-feedback="false">
         <n-flex>
-          <n-form-item label="姓名" path="condition_1">
-            <n-input v-model:value="model.condition_1" placeholder="请输入" />
+          <n-form-item label="名称" path="condition_1">
+            <n-input v-model:value="model.condition_1" placeholder="请输入店铺名称" />
           </n-form-item>
-          <n-form-item label="年龄" path="condition_2">
-            <n-input v-model:value="model.condition_2" placeholder="请输入" />
+          <n-form-item label="地址" path="condition_2">
+            <n-input v-model:value="model.condition_2" placeholder="请输入店铺地址" />
           </n-form-item>
-          <n-form-item label="性别" path="condition_3">
-            <n-input v-model:value="model.condition_3" placeholder="请输入" />
-          </n-form-item>
-          <n-form-item label="地址" path="condition_4">
-            <n-input v-model:value="model.condition_4" placeholder="请输入" />
+          <n-form-item label="电话" path="condition_3">
+            <n-input v-model:value="model.condition_3" placeholder="请输入店铺电话" />
           </n-form-item>
           <n-flex class="ml-auto">
-            <NButton type="primary" @click="getUserList">
+            <NButton type="primary" @click="handleFilter">
               <template #icon>
                 <icon-park-outline-search />
               </template>
@@ -160,9 +202,9 @@ function handleAddTable() {
             下载
           </NButton>
         </div>
-        <n-data-table :columns="columns" :data="listData" :loading="loading" />
+        <n-data-table :columns="columns" :data="displayData" :loading="loading" />
         <Pagination :count="100" @change="changePage" />
-        <TableModal v-model:visible="visible" :type="modalType" :modal-data="editData" />
+        <TableModal v-model:visible="visible" :type="modalType" :modal-data="editData" @success="getStoreList" />
       </NSpace>
     </n-card>
   </NSpace>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { fetchCreateStores } from '@/service/api/stores'
+import { fetchCreateStores, fetchUpdateStore } from '@/service/api/stores'
 
 interface Props {
   visible: boolean
@@ -13,16 +13,16 @@ const {
 } = defineProps<Props>()
 
 const emit = defineEmits<Emits>()
-const defaultFormModal: Entity.Store = {
-  store_id: 0, // 懒得删了
+const defaultFormModal: Omit<Entity.Store, 'store_id'> = {
   store_name: '',
   address: '',
   phone_number: '',
 }
-const formModel = ref({ ...defaultFormModal })
+const formModel = ref<Partial<Entity.Store>>({ ...defaultFormModal })
 
 interface Emits {
   (e: 'update:visible', visible: boolean): void
+  (e: 'success'): void // Add success event
 }
 
 const modalVisible = computed({
@@ -68,9 +68,41 @@ watch(
 const isLoading = ref(false)
 async function handleSubmit() {
   isLoading.value = true
-  await fetchCreateStores(formModel.value)
-  isLoading.value = false
-  closeModal()
+  // TODO: 在全局请求拦截或具体业务场景中处理API返回值校验
+  const dataToSend: { store_name: string; address: string; phone_number: string } = {
+    store_name: formModel.value.store_name || '',
+    address: formModel.value.address || '',
+    phone_number: formModel.value.phone_number || '',
+  }
+
+  try {
+    if (type === 'edit') {
+      if (formModel.value.store_id === undefined) {
+        // Should not happen if modalData is correctly passed for edit mode
+        console.error('Store ID is missing for update')
+        window.$message.error('更新失败：门店ID缺失')
+        isLoading.value = false
+        return
+      }
+      // TODO: 在全局请求拦截或具体业务场景中处理API返回值校验
+      await fetchUpdateStore(formModel.value.store_id, dataToSend)
+      window.$message.success('门店信息更新成功')
+    }
+    else {
+      // TODO: 在全局请求拦截或具体业务场景中处理API返回值校验
+      await fetchCreateStores(dataToSend)
+      window.$message.success('门店添加成功')
+    }
+    emit('success') // Emit success event
+    closeModal()
+  }
+  catch (error) {
+    console.error('Failed to submit store data:', error)
+    window.$message.error(type === 'edit' ? '更新失败' : '添加失败')
+  }
+  finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -88,16 +120,13 @@ async function handleSubmit() {
   >
     <n-form label-placement="left" :model="formModel" label-align="left" :label-width="80">
       <n-grid :cols="24" :x-gap="18">
-        <n-form-item-grid-item :span="12" label="id" path="name">
-          <n-input-number v-model:value="formModel.store_id" :show-button="false" :disabled="true" />
-        </n-form-item-grid-item>
-        <n-form-item-grid-item :span="12" label="名称" path="age">
+        <n-form-item-grid-item :span="12" label="名称" path="store_name">
           <n-input v-model:value="formModel.store_name" />
         </n-form-item-grid-item>
-        <n-form-item-grid-item :span="12" label="地址" path="gender">
+        <n-form-item-grid-item :span="12" label="地址" path="address">
           <n-input v-model:value="formModel.address" />
         </n-form-item-grid-item>
-        <n-form-item-grid-item :span="12" label="电话" path="email">
+        <n-form-item-grid-item :span="12" label="电话" path="phone_number">
           <n-input v-model:value="formModel.phone_number" />
         </n-form-item-grid-item>
       </n-grid>
