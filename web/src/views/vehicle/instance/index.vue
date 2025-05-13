@@ -11,10 +11,9 @@ const { bool: visible, setTrue: openModal } = useBoolean(false)
 const { bool: searchLoading, setTrue: startSearchLoading, setFalse: endSearchLoading } = useBoolean(false)
 
 const initialModel = {
-  condition_1: '', // 对应品牌 make
-  condition_2: '', // 对应型号 model
-  condition_3: '', // 对应车牌号 license_plate
-  condition_4: '', // 对应状态 status
+  condition_1: '', // 对应品牌 (来自 type.brand)
+  condition_2: '', // 对应型号 (来自 type.model)
+  // 移除了车牌号和状态的筛选条件
 }
 const model = ref({ ...initialModel })
 
@@ -35,39 +34,27 @@ const columns: DataTableColumns<Entity.Vehicle> = [
   {
     title: '品牌',
     align: 'center',
-    key: 'make',
+    key: 'type.brand', // 从嵌套的 type 对象获取
+    render: row => row.type?.brand || 'N/A',
   },
   {
     title: '型号',
     align: 'center',
-    key: 'model',
+    key: 'type.model', // 从嵌套的 type 对象获取
+    render: row => row.type?.model || 'N/A',
   },
   {
-    title: '年份',
+    title: '生产日期', // 之前是 '年份'
     align: 'center',
-    key: 'year',
-  },
-  {
-    title: '车牌号',
-    align: 'center',
-    key: 'license_plate',
-  },
-  {
-    title: '状态',
-    align: 'center',
-    key: 'status',
+    key: 'manufacture_date',
   },
   {
     title: '日租金',
     align: 'center',
-    key: 'daily_rate',
-    render: row => `￥${row.daily_rate.toFixed(2)}`,
+    key: 'type.daily_rent_price', // 从嵌套的 type 对象获取
+    render: row => (row.type?.daily_rent_price ? `￥${row.type.daily_rent_price.toFixed(2)}` : 'N/A'),
   },
-  {
-    title: '店铺ID',
-    align: 'center',
-    key: 'store_id',
-  },
+  // 移除了车牌号、状态、店铺ID的列
   {
     title: '操作',
     align: 'center',
@@ -104,7 +91,7 @@ async function getVehicleList() {
   startLoading() // 使用 setTrue
   try {
     const res: any = await fetchGetVehicles() // Assuming fetchGetVehicles is defined
-    allVehiclesData.value = res.data || []
+    allVehiclesData.value = res.data || [] // 后端返回的数据应包含嵌套的 type 对象
     displayData.value = [...allVehiclesData.value]
   }
   catch (error) {
@@ -123,31 +110,20 @@ function handleFilter() {
 
   let filteredData = [...allVehiclesData.value]
 
-  const makeFilter = model.value.condition_1.trim().toLowerCase()
-  const modelFilter = model.value.condition_2.trim().toLowerCase()
-  const licensePlateFilter = model.value.condition_3.trim().toLowerCase()
-  const statusFilter = model.value.condition_4.trim().toLowerCase()
+  const brandFilter = model.value.condition_1.trim().toLowerCase() // 对应品牌
+  const modelFilter = model.value.condition_2.trim().toLowerCase() // 对应型号
 
-  if (makeFilter) {
+  if (brandFilter) {
     filteredData = filteredData.filter(vehicle =>
-      vehicle.make.toLowerCase().includes(makeFilter),
+      vehicle.type?.brand?.toLowerCase().includes(brandFilter),
     )
   }
   if (modelFilter) {
     filteredData = filteredData.filter(vehicle =>
-      vehicle.model.toLowerCase().includes(modelFilter),
+      vehicle.type?.model?.toLowerCase().includes(modelFilter),
     )
   }
-  if (licensePlateFilter) {
-    filteredData = filteredData.filter(vehicle =>
-      vehicle.license_plate.toLowerCase().includes(licensePlateFilter),
-    )
-  }
-  if (statusFilter) {
-    filteredData = filteredData.filter(vehicle =>
-      vehicle.status.toLowerCase().includes(statusFilter),
-    )
-  }
+  // 移除了基于 license_plate 和 status 的筛选逻辑
 
   displayData.value = filteredData
   endLoading() // 使用 setFalse
@@ -197,12 +173,7 @@ function handleAddTable() {
           <n-form-item label="型号" path="condition_2">
             <n-input v-model:value="model.condition_2" placeholder="请输入车辆型号" />
           </n-form-item>
-          <n-form-item label="车牌号" path="condition_3">
-            <n-input v-model:value="model.condition_3" placeholder="请输入车牌号" />
-          </n-form-item>
-          <n-form-item label="状态" path="condition_4">
-            <n-input v-model:value="model.condition_4" placeholder="请输入状态" />
-          </n-form-item>
+          <!-- 移除了车牌号和状态的筛选输入框 -->
           <n-flex class="ml-auto">
             <NButton type="primary" :loading="searchLoading" @click="handleFilter">
               <template #icon>

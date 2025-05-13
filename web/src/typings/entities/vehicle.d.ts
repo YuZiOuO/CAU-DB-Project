@@ -1,15 +1,12 @@
 declare namespace Entity {
   /**
-   * 车辆实体类型
+   * 车辆实例实体
    */
   interface Vehicle {
     vehicle_id: number
-    make: string // 品牌
-    model: string // 型号
-    year: number // 年份
-    license_plate: string // 车牌号
-    status: string // 状态 (例如: 'available', 'rented', 'maintenance')
-    daily_rate: number // 日租金
-    store_id: number // 所属店铺ID
+    type_id: number // 外键，关联到 VehicleType
+    manufacture_date: string // 生产日期，格式 YYYY-MM-DD
+
+    type?: VehicleType // 嵌套的车辆类型详细信息，用于显示品牌、型号、日租金等
   }
 }

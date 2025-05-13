@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { fetchCreateVehicle, fetchUpdateVehicle } from '@/service/api/vehicles'
+import { fetchGetVehicleTypes } from '@/service/api/vehicle_type'
+import { fetchGetStores } from '@/service/api/stores'
+import type { SelectOption } from 'naive-ui'
 
 interface Props {
   visible: boolean
   type?: ModalType
-  modalData?: Entity.Vehicle | null // 使用 Entity.Vehicle
+  modalData?: Entity.Vehicle | null
 }
 const {
   visible,
@@ -15,17 +18,58 @@ const {
 
 const emit = defineEmits<Emits>()
 
-// 添加新车辆时的默认表单模型
-const defaultFormModal: Omit<Entity.Vehicle, 'vehicle_id'> = {
-  make: '',
-  model: '',
-  year: new Date().getFullYear(), // 默认为当前年份
-  license_plate: '',
-  status: 'available', // 默认状态
-  daily_rate: 0,
-  store_id: 0, // 或者一个默认的店铺ID (如果适用)
+// 获取车辆类型和店铺列表
+const vehicleTypeOptions = ref<SelectOption[]>([])
+const storeOptions = ref<SelectOption[]>([])
+const isLoadingTypes = ref(false)
+const isLoadingStores = ref(false)
+
+async function loadVehicleTypes() {
+  isLoadingTypes.value = true
+  try {
+    const res: any = await fetchGetVehicleTypes()
+    if (res.data) {
+      vehicleTypeOptions.value = res.data.map((vt: Entity.VehicleType) => ({
+        label: `${vt.brand} ${vt.model} (￥${vt.daily_rent_price.toFixed(2)})`,
+        value: vt.type_id,
+      }))
+    }
+  }
+  catch (error) {
+    console.error('获取车辆类型失败:', error)
+    window.$message.error('获取车辆类型失败')
+  }
+  finally {
+    isLoadingTypes.value = false
+  }
 }
-const formModel = ref<Partial<Entity.Vehicle>>({ ...defaultFormModal }) // 使用 Entity.Vehicle
+
+async function loadStores() {
+  isLoadingStores.value = true
+  try {
+    const res: any = await fetchGetStores() // 假设 fetchGetStores 返回 Entity.Store[]
+    if (res.data) {
+      storeOptions.value = res.data.map((s: Entity.Store) => ({
+        label: s.store_name,
+        value: s.store_id,
+      }))
+    }
+  }
+  catch (error) {
+    console.error('获取店铺列表失败:', error)
+    window.$message.error('获取店铺列表失败')
+  }
+  finally {
+    isLoadingStores.value = false
+  }
+}
+
+// 调整表单模型以匹配新的 Entity.Vehicle 结构和后端API期望
+const defaultFormModal: Omit<Entity.Vehicle, 'vehicle_id' | 'type'> = {
+  type_id: 0, // 将被 n-select 填充
+  manufacture_date: new Date().toISOString().split('T')[0], // 默认为当天 YYYY-MM-DD
+}
+const formModel = ref<Partial<Entity.Vehicle>>({ ...defaultFormModal })
 
 interface Emits {
   (e: 'update:visible', visible: boolean): void
@@ -60,8 +104,13 @@ function UpdateFormModelByModalType() {
       formModel.value = { ...defaultFormModal }
     },
     edit: () => {
-      if (modalData)
-        formModel.value = { ...modalData }
+      if (modalData) {
+        formModel.value = {
+          vehicle_id: modalData.vehicle_id,
+          type_id: modalData.type_id,
+          manufacture_date: modalData.manufacture_date,
+        }
+      }
     },
   }
   handlers[type]()
@@ -70,23 +119,37 @@ function UpdateFormModelByModalType() {
 watch(
   () => visible,
   (newValue) => {
-    if (newValue)
+    if (newValue) {
       UpdateFormModelByModalType()
+      if (vehicleTypeOptions.value.length === 0) {
+        loadVehicleTypes()
+      }
+      if (storeOptions.value.length === 0) {
+        loadStores()
+      }
+    }
   },
 )
 
 const isLoading = ref(false)
 async function handleSubmit() {
   isLoading.value = true
-  // 发送到后端的数据
+  // 构建发送到后端的数据，严格按照后端API要求
   const dataToSend = {
-    make: formModel.value.make || '',
-    model: formModel.value.model || '',
-    year: formModel.value.year || new Date().getFullYear(),
-    license_plate: formModel.value.license_plate || '',
-    status: formModel.value.status || 'available',
-    daily_rate: formModel.value.daily_rate || 0,
-    store_id: formModel.value.store_id || 0, // 确保 store_id 被包含
+    type_id: formModel.value.type_id as number,
+    manufacture_date: formModel.value.manufacture_date as string,
+  }
+
+  // 校验关键字段
+  if (!dataToSend.type_id) {
+    window.$message.error('请选择车辆类型')
+    isLoading.value = false
+    return
+  }
+  if (!dataToSend.manufacture_date) {
+    window.$message.error('请输入生产日期')
+    isLoading.value = false
+    return
   }
 
   try {
@@ -97,12 +160,10 @@ async function handleSubmit() {
         isLoading.value = false
         return
       }
-      // TODO: 在全局请求拦截或具体业务场景中处理API返回值校验
       await fetchUpdateVehicle(formModel.value.vehicle_id, dataToSend)
       window.$message.success('车辆信息更新成功')
     }
     else {
-      // TODO: 在全局请求拦截或具体业务场景中处理API返回值校验
       await fetchCreateVehicle(dataToSend)
       window.$message.success('车辆添加成功')
     }
@@ -131,35 +192,28 @@ async function handleSubmit() {
       action: true,
     }"
   >
-    <n-form label-placement="left" :model="formModel" label-align="left" :label-width="80">
+    <n-form label-placement="left" :model="formModel" label-align="left" :label-width="100">
       <n-grid :cols="24" :x-gap="18">
-        <n-form-item-grid-item :span="12" label="品牌" path="make">
-          <n-input v-model:value="formModel.make" placeholder="请输入车辆品牌" />
+        <n-form-item-grid-item :span="12" label="车辆类型" path="type_id">
+          <n-select
+            v-model:value="formModel.type_id"
+            filterable
+            placeholder="请选择车辆类型"
+            :options="vehicleTypeOptions"
+            :loading="isLoadingTypes"
+            clearable
+          />
         </n-form-item-grid-item>
-        <n-form-item-grid-item :span="12" label="型号" path="model">
-          <n-input v-model:value="formModel.model" placeholder="请输入车辆型号" />
+        <n-form-item-grid-item :span="12" label="生产日期" path="manufacture_date">
+          <n-date-picker
+            v-model:formatted-value="formModel.manufacture_date"
+            type="date"
+            value-format="yyyy-MM-dd"
+            placeholder="请选择生产日期"
+            class="w-full"
+          />
         </n-form-item-grid-item>
-        <n-form-item-grid-item :span="12" label="年份" path="year">
-          <n-input-number v-model:value="formModel.year" :show-button="false" placeholder="请输入年份" class="w-full" />
-        </n-form-item-grid-item>
-        <n-form-item-grid-item :span="12" label="车牌号" path="license_plate">
-          <n-input v-model:value="formModel.license_plate" placeholder="请输入车牌号" />
-        </n-form-item-grid-item>
-        <n-form-item-grid-item :span="12" label="状态" path="status">
-          <!-- 考虑为预定义状态使用 n-select -->
-          <n-input v-model:value="formModel.status" placeholder="例如: available, rented" />
-        </n-form-item-grid-item>
-        <n-form-item-grid-item :span="12" label="日租金" path="daily_rate">
-          <n-input-number v-model:value="formModel.daily_rate" :min="0" placeholder="请输入日租金" class="w-full">
-            <template #prefix>
-              ￥
-            </template>
-          </n-input-number>
-        </n-form-item-grid-item>
-        <n-form-item-grid-item :span="12" label="所属店铺ID" path="store_id">
-          <!-- 考虑使用 n-select 来选择店铺 -->
-          <n-input-number v-model:value="formModel.store_id" :min="0" placeholder="请输入店铺ID" class="w-full" />
-        </n-form-item-grid-item>
+        <!-- 移除了车牌号、状态和所属店铺的表单项 -->
       </n-grid>
     </n-form>
     <template #action>

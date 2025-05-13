@@ -1,15 +1,9 @@
 import { request } from '../http'
 
-// 定义创建/更新车辆时使用的数据结构
-// 基于典型的车辆属性和后端期望
+// 定义创建/更新车辆实例时后端API实际接受的数据结构
 interface IVehicleData {
-  make: string
-  model: string
-  year: number
-  license_plate: string
-  status: string // 例如: 'available', 'rented', 'maintenance'
-  daily_rate: number
-  store_id: number // 该车辆所属的店铺ID
+  type_id: number
+  manufacture_date: string // 格式 YYYY-MM-DD
 }
 
 export function fetchGetVehicles() {
@@ -19,12 +13,14 @@ export function fetchGetVehicles() {
 }
 
 export function fetchCreateVehicle(data: IVehicleData) {
-  const methodInstance = request.Post<Service.ResponseResult<Entity.Vehicle>>('/vehicles', data) // 使用 Entity.Vehicle
+  // data 对象现在应该只包含 type_id 和 manufacture_date
+  const methodInstance = request.Post<Service.ResponseResult<Entity.Vehicle>>('/vehicles', data)
   return methodInstance
 }
 
 export function fetchUpdateVehicle(id: number, data: IVehicleData) {
-  const methodInstance = request.Put<Service.ResponseResult<Entity.Vehicle>>(`/vehicles/${id}`, data) // 使用 Entity.Vehicle
+  // data 对象现在应该只包含 type_id 和 manufacture_date
+  const methodInstance = request.Put<Service.ResponseResult<Entity.Vehicle>>(`/vehicles/${id}`, data)
   return methodInstance
 }
 
