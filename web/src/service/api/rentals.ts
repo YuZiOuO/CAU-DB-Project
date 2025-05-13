@@ -1,17 +1,18 @@
-import { request } from '../http';
+import { request } from '../http'
 
 /** 创建租借单请求的数据结构 */
 interface ICreateRentalData {
-  rental_store_id: number;
-  expected_return_date: string; // YYYY-MM-DD
-  return_store_id: number;
+  rental_store_id: number
+  expected_return_date: string // YYYY-MM-DD
+  return_store_id: number
+  vehicle_type_id: number // 新增：用户期望的车辆类型ID
 }
 
 /**
  * 获取当前用户的租借单列表 (根据用户角色不同，返回内容不同)
  */
 export function fetchGetRentals() {
-  return request.Get<Service.ResponseResult<Entity.Rental[]>>('/rentals');
+  return request.Get<Service.ResponseResult<Entity.Rental[]>>('/rentals')
 }
 
 /**
@@ -19,7 +20,7 @@ export function fetchGetRentals() {
  * @param rentalId - 租借单ID
  */
 export function fetchGetRentalById(rentalId: number) {
-  return request.Get<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}`);
+  return request.Get<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}`)
 }
 
 /**
@@ -27,7 +28,7 @@ export function fetchGetRentalById(rentalId: number) {
  * @param data - 创建租借单所需数据
  */
 export function fetchCreateRental(data: ICreateRentalData) {
-  return request.Post<Service.ResponseResult<Entity.Rental>>('/rentals', data);
+  return request.Post<Service.ResponseResult<Entity.Rental>>('/rentals', data)
 }
 
 /**
@@ -36,7 +37,7 @@ export function fetchCreateRental(data: ICreateRentalData) {
  * @param vehicleId - 分配的车辆ID
  */
 export function fetchApproveRental(rentalId: number, vehicleId: number) {
-  return request.Put<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}/approve`, { vehicle_id: vehicleId });
+  return request.Put<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}/approve`, { vehicle_id: vehicleId })
 }
 
 /**
@@ -44,7 +45,7 @@ export function fetchApproveRental(rentalId: number, vehicleId: number) {
  * @param rentalId - 租借单ID
  */
 export function fetchReturnRental(rentalId: number) {
-  return request.Put<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}/return`);
+  return request.Put<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}/return`)
 }
 
 /**
@@ -53,7 +54,7 @@ export function fetchReturnRental(rentalId: number) {
  * @param newExpectedReturnDate - 新的期望归还日期 (YYYY-MM-DD)
  */
 export function fetchRequestExtension(rentalId: number, newExpectedReturnDate: string) {
-  return request.Put<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}/extend`, { expected_return_date: newExpectedReturnDate });
+  return request.Put<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}/extend`, { expected_return_date: newExpectedReturnDate })
 }
 
 /**
@@ -61,7 +62,7 @@ export function fetchRequestExtension(rentalId: number, newExpectedReturnDate: s
  * @param rentalId - 租借单ID
  */
 export function fetchApproveExtension(rentalId: number) {
-  return request.Put<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}/approve-extension`);
+  return request.Put<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}/approve-extension`)
 }
 
 /**
@@ -70,7 +71,7 @@ export function fetchApproveExtension(rentalId: number) {
  * @param originalReturnDate - 原始归还日期 (YYYY-MM-DD), 用于恢复日期
  */
 export function fetchRejectExtension(rentalId: number, originalReturnDate: string) {
-  return request.Put<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}/reject-extension`, { original_return_date: originalReturnDate });
+  return request.Put<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}/reject-extension`, { original_return_date: originalReturnDate })
 }
 
 /**
@@ -79,5 +80,5 @@ export function fetchRejectExtension(rentalId: number, originalReturnDate: strin
  * @param rentalId - 租借单ID
  */
 export function fetchCancelRental(rentalId: number) {
-  return request.Put<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}/cancel`);
+  return request.Put<Service.ResponseResult<Entity.Rental>>(`/rentals/${rentalId}/cancel`)
 }

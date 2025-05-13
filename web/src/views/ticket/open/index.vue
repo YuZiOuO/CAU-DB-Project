@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRentalStore } from '@/store';
-import type { FormInst, FormRules } from 'naive-ui';
+import { ref, onMounted, computed } from 'vue'; // 新增 computed
+import { useRentalStore, useVehicleTypeStore } from '@/store'; // 新增 useVehicleTypeStore
+import type { FormInst, FormRules, SelectOption } from 'naive-ui'; // 新增 SelectOption
 import { useRouter } from 'vue-router';
 
 const rentalStore = useRentalStore();
+const vehicleTypeStore = useVehicleTypeStore(); // 新增
 const router = useRouter();
 
 const formRef = ref<FormInst | null>(null);
@@ -12,20 +13,35 @@ const formModel = ref<{
   rental_store_id: number | null;
   expected_return_date: string | null;
   return_store_id: number | null;
+  vehicle_type_id: number | null; 
 }>({
   rental_store_id: null,
   expected_return_date: null,
   return_store_id: null,
+  vehicle_type_id: null, 
 });
 
 const rules: FormRules = {
   rental_store_id: [{ required: true, type: 'number', message: '请选择租借门店', trigger: ['blur', 'change'] }],
+  vehicle_type_id: [{ required: true, type: 'number', message: '请选择车辆类型', trigger: ['blur', 'change'] }], 
   expected_return_date: [{ required: true, message: '请选择期望归还日期', trigger: ['blur', 'change'] }],
   return_store_id: [{ required: true, type: 'number', message: '请选择归还门店', trigger: ['blur', 'change'] }],
 };
 
+// 新增：计算车辆类型选项
+const vehicleTypeOptionsComputed = computed<SelectOption[]>(() => {
+  return vehicleTypeStore.items.map(vt => ({
+    label: `${vt.brand} ${vt.model} (日租金: ￥${vt.daily_rent_price.toFixed(2)})`,
+    value: vt.type_id,
+  }));
+});
+
 onMounted(async () => {
   await rentalStore.fetchStoreOptions();
+  // 修改：从 vehicleTypeStore 获取车辆类型
+  if (vehicleTypeStore.items.length === 0) {
+    await vehicleTypeStore.fetchVehicleTypes();
+  }
   // Set default expected_return_date to tomorrow
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -43,10 +59,12 @@ async function handleSubmit() {
         rental_store_id: null,
         expected_return_date: null,
         return_store_id: null,
+        vehicle_type_id: null, // 新增
       };
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       formModel.value.expected_return_date = tomorrow.toISOString().split('T')[0];
+      formRef.value?.restoreValidation();
     }
   } catch (errors) {
     // Validation errors are handled by Naive UI form
@@ -75,6 +93,15 @@ function disabledDate(ts: number) {
           v-model:value="formModel.rental_store_id"
           placeholder="请选择租借门店"
           :options="rentalStore.storeOptions"
+          filterable
+        />
+      </n-form-item>
+      <n-form-item label="车辆类型" path="vehicle_type_id">
+        <n-select
+          v-model:value="formModel.vehicle_type_id"
+          placeholder="请选择车辆类型"
+          :options="vehicleTypeOptionsComputed"
+          :loading="vehicleTypeStore.loading" 
           filterable
         />
       </n-form-item>

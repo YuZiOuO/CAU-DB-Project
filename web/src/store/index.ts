@@ -3,7 +3,6 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 
 export * from './app/index'
 export * from './auth'
-export * from './dict'
 export * from './router'
 export * from './tab'
 export * from './vehicle/typeStore'
