@@ -91,21 +91,12 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     pid: 4,
   },
   {
-    name: 'reviewTickets',
+    name: 'reviewTickets', // This was 'reviewTickets', but seems more like a list view
     path: '/ticket/list',
     title: '查看租借单',
     requiresAuth: true,
-    componentPath: '/store/manage/index.vue',
-    id: 41,
-    pid: 4,
-  },
-  {
-    name: 'reviewTickets',
-    path: '/ticket/review',
-    title: '审核租借单',
-    requiresAuth: true,
-    componentPath: '/store/manage/index.vue',
-    id: 42,
+    componentPath: '/ticket/list/index.vue', // Updated componentPath
+    id: 41, // Keep ID or re-evaluate if it was for a different component
     pid: 4,
   },
   {
