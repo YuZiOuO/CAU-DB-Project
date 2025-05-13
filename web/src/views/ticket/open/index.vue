@@ -1,57 +1,55 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'; // 新增 computed
-import { useRentalStore, useVehicleTypeStore } from '@/store'; // 新增 useVehicleTypeStore
-import type { FormInst, FormRules, SelectOption } from 'naive-ui'; // 新增 SelectOption
-import { useRouter } from 'vue-router';
+import { computed, onMounted, ref } from 'vue'
+import { useRentalStore, useVehicleTypeStore } from '@/store'
+import type { FormInst, FormRules, SelectOption } from 'naive-ui'
 
-const rentalStore = useRentalStore();
-const vehicleTypeStore = useVehicleTypeStore(); // 新增
-const router = useRouter();
+const rentalStore = useRentalStore()
+const vehicleTypeStore = useVehicleTypeStore()
 
-const formRef = ref<FormInst | null>(null);
+const formRef = ref<FormInst | null>(null)
 const formModel = ref<{
-  rental_store_id: number | null;
-  expected_return_date: string | null;
-  return_store_id: number | null;
-  vehicle_type_id: number | null; 
+  rental_store_id: number | null
+  expected_return_date: string | null
+  return_store_id: number | null
+  vehicle_type_id: number | null
 }>({
   rental_store_id: null,
   expected_return_date: null,
   return_store_id: null,
-  vehicle_type_id: null, 
-});
+  vehicle_type_id: null,
+})
 
 const rules: FormRules = {
   rental_store_id: [{ required: true, type: 'number', message: '请选择租借门店', trigger: ['blur', 'change'] }],
-  vehicle_type_id: [{ required: true, type: 'number', message: '请选择车辆类型', trigger: ['blur', 'change'] }], 
+  vehicle_type_id: [{ required: true, type: 'number', message: '请选择车辆类型', trigger: ['blur', 'change'] }],
   expected_return_date: [{ required: true, message: '请选择期望归还日期', trigger: ['blur', 'change'] }],
   return_store_id: [{ required: true, type: 'number', message: '请选择归还门店', trigger: ['blur', 'change'] }],
-};
+}
 
 // 新增：计算车辆类型选项
 const vehicleTypeOptionsComputed = computed<SelectOption[]>(() => {
   return vehicleTypeStore.items.map(vt => ({
     label: `${vt.brand} ${vt.model} (日租金: ￥${vt.daily_rent_price.toFixed(2)})`,
     value: vt.type_id,
-  }));
-});
+  }))
+})
 
 onMounted(async () => {
-  await rentalStore.fetchStoreOptions();
+  await rentalStore.fetchStoreOptions()
   // 修改：从 vehicleTypeStore 获取车辆类型
   if (vehicleTypeStore.items.length === 0) {
-    await vehicleTypeStore.fetchVehicleTypes();
+    await vehicleTypeStore.fetchVehicleTypes()
   }
   // Set default expected_return_date to tomorrow
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  formModel.value.expected_return_date = tomorrow.toISOString().split('T')[0];
-});
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  formModel.value.expected_return_date = tomorrow.toISOString().split('T')[0]
+})
 
 async function handleSubmit() {
   try {
-    await formRef.value?.validate();
-    const success = await rentalStore.createRentalRequest(formModel.value);
+    await formRef.value?.validate()
+    const success = await rentalStore.createRentalRequest(formModel.value)
     if (success) {
       // Optionally, navigate to another page or reset form
       // router.push('/ticket/list'); // Example navigation
@@ -59,21 +57,22 @@ async function handleSubmit() {
         rental_store_id: null,
         expected_return_date: null,
         return_store_id: null,
-        vehicle_type_id: null, // 新增
-      };
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      formModel.value.expected_return_date = tomorrow.toISOString().split('T')[0];
-      formRef.value?.restoreValidation();
+        vehicle_type_id: null,
+      }
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      formModel.value.expected_return_date = tomorrow.toISOString().split('T')[0]
+      formRef.value?.restoreValidation()
     }
-  } catch (errors) {
+  }
+  catch (errors) {
     // Validation errors are handled by Naive UI form
-    console.log('Form validation errors:', errors);
+    console.log('Form validation errors:', errors)
   }
 }
 
 function disabledDate(ts: number) {
-  return ts < Date.now() - 86400000; // Disable dates before today
+  return ts < Date.now() - 86400000 // Disable dates before today
 }
 </script>
 
@@ -101,7 +100,7 @@ function disabledDate(ts: number) {
           v-model:value="formModel.vehicle_type_id"
           placeholder="请选择车辆类型"
           :options="vehicleTypeOptionsComputed"
-          :loading="vehicleTypeStore.loading" 
+          :loading="vehicleTypeStore.loading"
           filterable
         />
       </n-form-item>
