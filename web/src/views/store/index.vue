@@ -1,26 +1,46 @@
 <script setup lang="tsx">
+import { onMounted, ref } from 'vue'
 import type { DataTableColumns, FormInst } from 'naive-ui'
-import { useBoolean } from '@/hooks'
 import { NButton, NPopconfirm, NSpace } from 'naive-ui'
 import TableModal from './components/TableModal.vue'
-import { fetchDeleteStore, fetchGetStores } from '@/service/api/stores'
+import { useStoreModule } from '@/store'
+import { storeToRefs } from 'pinia'
+import { useBoolean } from '@/hooks' // 引入 useBoolean
 
-const { bool: loading, setTrue: startLoading, setFalse: endLoading } = useBoolean(false)
-const { bool: visible, setTrue: openModal } = useBoolean(false)
+const storeModule = useStoreModule()
+const {
+  displayedItems,
+  loading,
+  searchLoading, // searchLoading is available from store
+  filterModel,
+} = storeToRefs(storeModule)
 
-const initialModel = {
-  condition_1: '', // 对应店铺名称
-  condition_2: '', // 对应店铺地址
-  condition_3: '', // 对应店铺电话
-}
-const model = ref({ ...initialModel })
+const { bool: isModalVisible, setTrue: openModal, setFalse: closeModal } = useBoolean(false)
+const modalType = ref<'add' | 'edit'>('add')
+const editingItem = ref<Entity.Store | null>(null)
 
-const formRef = ref<FormInst | null>()
+const formRef = ref<FormInst | null>(null)
+
+onMounted(() => {
+  storeModule.fetchStores()
+})
 
 async function handleDelete(id: number) {
-  await fetchDeleteStore(String(id))
-  getStoreList()
+  await storeModule.deleteStore(id)
 }
+
+function handleAddTable() {
+  modalType.value = 'add'
+  editingItem.value = null
+  openModal()
+}
+
+function handleEditTable(row: Entity.Store) {
+  modalType.value = 'edit'
+  editingItem.value = { ...row }
+  openModal()
+}
+
 const columns: DataTableColumns<Entity.Store> = [
   {
     title: 'id',
@@ -58,7 +78,7 @@ const columns: DataTableColumns<Entity.Store> = [
           <NPopconfirm onPositiveClick={() => handleDelete(row.store_id)}>
             {{
               default: () => '确认删除',
-              trigger: () => <NButton size="small">删除</NButton>,
+              trigger: () => <NButton size="small" type="error">删除</NButton>, // Changed to error type for consistency
             }}
           </NPopconfirm>
         </NSpace>
@@ -67,113 +87,33 @@ const columns: DataTableColumns<Entity.Store> = [
   },
 ]
 
-const allStoresData = ref<Entity.Store[]>([])
-const displayData = ref<Entity.Store[]>([]) // 用于表格显示的数据，可能是过滤后的
-
-onMounted(() => {
-  getStoreList()
-})
-
-async function getStoreList() {
-  startLoading() // 使用 setTrue
-  try {
-    const res: any = await fetchGetStores()
-    allStoresData.value = res.data || []
-    displayData.value = [...allStoresData.value] // 初始显示所有数据
-  }
-  catch (error) {
-    console.error('Failed to fetch store list:', error)
-    allStoresData.value = []
-    displayData.value = []
-  }
-  finally {
-    endLoading() // 使用 setFalse
-  }
-}
-
-function handleFilter() {
-  startLoading() // 使用 setTrue
-
-  let filteredData = [...allStoresData.value]
-
-  const nameFilter = model.value.condition_1.trim().toLowerCase()
-  const addressFilter = model.value.condition_2.trim().toLowerCase()
-  const phoneFilter = model.value.condition_3.trim().toLowerCase()
-
-  if (nameFilter) {
-    filteredData = filteredData.filter(store =>
-      store.store_name.toLowerCase().includes(nameFilter),
-    )
-  }
-
-  if (addressFilter) {
-    filteredData = filteredData.filter(store =>
-      store.address.toLowerCase().includes(addressFilter),
-    )
-  }
-
-  if (phoneFilter) {
-    filteredData = filteredData.filter(store =>
-      store.phone_number && store.phone_number.toLowerCase().includes(phoneFilter),
-    )
-  }
-
-  displayData.value = filteredData
-  endLoading() // 使用 setFalse
-}
-
 function changePage(page: number, size: number) {
   window.$message.success(`分页器:${page},${size}`)
-}
-function handleResetSearch() {
-  model.value = { ...initialModel }
-  displayData.value = [...allStoresData.value] // 重置为显示所有数据
-}
-
-type ModalType = 'add' | 'edit'
-const modalType = ref<ModalType>('add')
-function setModalType(type: ModalType) {
-  modalType.value = type
-}
-
-const editData = ref<Entity.Store | null>(null)
-function setEditData(data: Entity.Store | null) {
-  editData.value = data
-}
-
-function handleEditTable(row: Entity.Store) {
-  setEditData(row)
-  setModalType('edit')
-  openModal()
-}
-function handleAddTable() {
-  openModal()
-  setModalType('add')
 }
 </script>
 
 <template>
   <NSpace vertical size="large">
     <n-card>
-      <n-form ref="formRef" :model="model" label-placement="left" inline :show-feedback="false">
+      <n-form ref="formRef" :model="filterModel" label-placement="left" inline :show-feedback="false">
         <n-flex>
-          <n-form-item label="名称" path="condition_1">
-            <n-input v-model:value="model.condition_1" placeholder="请输入店铺名称" />
+          <n-form-item label="名称" path="name">
+            <n-input v-model:value="filterModel.name" placeholder="请输入店铺名称" />
           </n-form-item>
-          <n-form-item label="地址" path="condition_2">
-            <n-input v-model:value="model.condition_2" placeholder="请输入店铺地址" />
+          <n-form-item label="地址" path="address">
+            <n-input v-model:value="filterModel.address" placeholder="请输入店铺地址" />
           </n-form-item>
-          <n-form-item label="电话" path="condition_3">
-            <n-input v-model:value="model.condition_3" placeholder="请输入店铺电话" />
+          <n-form-item label="电话" path="phone">
+            <n-input v-model:value="filterModel.phone" placeholder="请输入店铺电话" />
           </n-form-item>
           <n-flex class="ml-auto">
-            <NButton type="primary" @click="handleFilter">
+            <NButton type="primary" :loading="searchLoading" @click="storeModule.applyFilters">
               <template #icon>
                 <icon-park-outline-search />
               </template>
               搜索
             </NButton>
-            <NButton strong secondary @click="handleResetSearch">
+            <NButton strong secondary @click="storeModule.resetFilters">
               <template #icon>
                 <icon-park-outline-redo />
               </template>
@@ -205,9 +145,9 @@ function handleAddTable() {
             下载
           </NButton>
         </div>
-        <n-data-table :columns="columns" :data="displayData" :loading="loading" />
-        <Pagination :count="100" @change="changePage" />
-        <TableModal v-model:visible="visible" :type="modalType" :modal-data="editData" @success="getStoreList" />
+        <n-data-table :columns="columns" :data="displayedItems" :loading="loading" />
+        <Pagination :count="displayedItems.length" @change="changePage" /> <!-- Use displayedItems.length -->
+        <TableModal v-model:visible="isModalVisible" :type="modalType" :modal-data="editingItem" @success="() => { storeModule.fetchStores(); closeModal(); }" />
       </NSpace>
     </n-card>
   </NSpace>

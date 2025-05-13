@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { fetchCreateStores, fetchUpdateStore } from '@/service/api/stores'
+import { computed, ref, watch } from 'vue'
+import { useStoreModule } from '@/store'
 
 interface Props {
   visible: boolean
   type?: ModalType
-  modalData?: any
+  modalData?: Entity.Store | null
 }
-const {
-  visible,
-  type = 'add',
-  modalData = null,
-} = defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<Emits>()
+
+const storeModule = useStoreModule()
+
 const defaultFormModal: Omit<Entity.Store, 'store_id'> = {
   store_name: '',
   address: '',
@@ -22,83 +22,64 @@ const formModel = ref<Partial<Entity.Store>>({ ...defaultFormModal })
 
 interface Emits {
   (e: 'update:visible', visible: boolean): void
-  (e: 'success'): void // Add success event
+  (e: 'success'): void
 }
 
 const modalVisible = computed({
   get() {
-    return visible
+    return props.visible
   },
-  set(visible) {
-    closeModal(visible)
+  set(newVisible) {
+    emit('update:visible', newVisible)
   },
 })
-function closeModal(visible = false) {
-  emit('update:visible', visible)
+
+function handleCloseModal() {
+  emit('update:visible', false)
 }
+
 type ModalType = 'add' | 'edit'
 const title = computed(() => {
   const titles: Record<ModalType, string> = {
     add: '添加门店',
     edit: '编辑门店',
   }
-  return titles[type]
+  return titles[props.type || 'add']
 })
 
-function UpdateFormModelByModalType() {
-  const handlers = {
-    add: () => {
-      formModel.value = { ...defaultFormModal }
-    },
-    edit: () => {
-      if (modalData)
-        formModel.value = { ...modalData }
-    },
-  }
-  handlers[type]()
-}
 watch(
-  () => visible,
+  () => props.visible,
   (newValue) => {
-    if (newValue)
-      UpdateFormModelByModalType()
+    if (newValue) {
+      if (props.type === 'edit' && props.modalData) {
+        formModel.value = { ...props.modalData }
+      }
+      else {
+        formModel.value = { ...defaultFormModal }
+      }
+    }
   },
+  { immediate: true },
 )
 
 const isLoading = ref(false)
 async function handleSubmit() {
   isLoading.value = true
-  // TODO: 在全局请求拦截或具体业务场景中处理API返回值校验
-  const dataToSend: { store_name: string, address: string, phone_number: string } = {
+  // Ensure phone_number is not null, provide default if necessary
+  const dataToSend: Omit<Entity.Store, 'store_id'> = {
     store_name: formModel.value.store_name || '',
     address: formModel.value.address || '',
     phone_number: formModel.value.phone_number || '',
   }
 
   try {
-    if (type === 'edit') {
-      if (formModel.value.store_id === undefined) {
-        // Should not happen if modalData is correctly passed for edit mode
-        console.error('Store ID is missing for update')
-        window.$message.error('更新失败：门店ID缺失')
-        isLoading.value = false
-        return
-      }
-      // TODO: 在全局请求拦截或具体业务场景中处理API返回值校验
-      await fetchUpdateStore(formModel.value.store_id, dataToSend)
-      window.$message.success('门店信息更新成功')
+    if (props.type === 'edit' && props.modalData && props.modalData.store_id !== undefined) {
+      await storeModule.updateStore(props.modalData.store_id, dataToSend)
     }
     else {
-      // TODO: 在全局请求拦截或具体业务场景中处理API返回值校验
-      await fetchCreateStores(dataToSend)
-      window.$message.success('门店添加成功')
+      await storeModule.createStore(dataToSend)
     }
-    emit('success') // Emit success event
-    closeModal()
-  }
-  catch (error) {
-    console.error('Failed to submit store data:', error)
-    window.$message.error(type === 'edit' ? '更新失败' : '添加失败')
+    emit('success')
   }
   finally {
     isLoading.value = false
@@ -133,7 +114,7 @@ async function handleSubmit() {
     </n-form>
     <template #action>
       <n-space justify="center">
-        <n-button @click="closeModal()">
+        <n-button @click="handleCloseModal">
           取消
         </n-button>
         <n-button type="primary" :loading="isLoading" @click="handleSubmit">

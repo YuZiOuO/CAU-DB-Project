@@ -1,75 +1,26 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { fetchCreateVehicle, fetchUpdateVehicle } from '@/service/api/vehicles'
-import { fetchGetVehicleTypes } from '@/service/api/vehicle_type'
-import { fetchGetStores } from '@/service/api/stores'
+import { computed, ref, watch } from 'vue' // Removed onMounted as loadVehicleTypes is called conditionally
 import type { SelectOption } from 'naive-ui'
+import { useVehicleInstanceStore } from '@/store'
+import { storeToRefs } from 'pinia' // Import storeToRefs
 
 interface Props {
   visible: boolean
   type?: ModalType
   modalData?: Entity.Vehicle | null
 }
-const {
-  visible,
-  type = 'add',
-  modalData = null,
-} = defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<Emits>()
 
-// 获取车辆类型和店铺列表
-const vehicleTypeOptions = ref<SelectOption[]>([])
-const storeOptions = ref<SelectOption[]>([])
-const isLoadingTypes = ref(false)
-const isLoadingStores = ref(false)
+const vehicleInstanceStore = useVehicleInstanceStore()
+const { vehicleTypeOptions, isLoadingTypes } = storeToRefs(vehicleInstanceStore) // Use storeToRefs for reactive access
 
-async function loadVehicleTypes() {
-  isLoadingTypes.value = true
-  try {
-    const res: any = await fetchGetVehicleTypes()
-    if (res.data) {
-      vehicleTypeOptions.value = res.data.map((vt: Entity.VehicleType) => ({
-        label: `${vt.brand} ${vt.model} (￥${vt.daily_rent_price.toFixed(2)})`,
-        value: vt.type_id,
-      }))
-    }
-  }
-  catch (error) {
-    console.error('获取车辆类型失败:', error)
-    window.$message.error('获取车辆类型失败')
-  }
-  finally {
-    isLoadingTypes.value = false
-  }
+const defaultFormModal: { type_id: number | null, manufacture_date: string } = {
+  type_id: null,
+  manufacture_date: new Date().toISOString().split('T')[0],
 }
-
-async function loadStores() {
-  isLoadingStores.value = true
-  try {
-    const res: any = await fetchGetStores() // 假设 fetchGetStores 返回 Entity.Store[]
-    if (res.data) {
-      storeOptions.value = res.data.map((s: Entity.Store) => ({
-        label: s.store_name,
-        value: s.store_id,
-      }))
-    }
-  }
-  catch (error) {
-    console.error('获取店铺列表失败:', error)
-    window.$message.error('获取店铺列表失败')
-  }
-  finally {
-    isLoadingStores.value = false
-  }
-}
-
-// 调整表单模型以匹配新的 Entity.Vehicle 结构和后端API期望
-const defaultFormModal: Omit<Entity.Vehicle, 'vehicle_id' | 'type'> = {
-  type_id: 0, // 将被 n-select 填充
-  manufacture_date: new Date().toISOString().split('T')[0], // 默认为当天 YYYY-MM-DD
-}
-const formModel = ref<Partial<Entity.Vehicle>>({ ...defaultFormModal })
+const formModel = ref<{ type_id: number | null, manufacture_date: string, vehicle_id?: number }>({ ...defaultFormModal })
 
 interface Emits {
   (e: 'update:visible', visible: boolean): void
@@ -78,15 +29,15 @@ interface Emits {
 
 const modalVisible = computed({
   get() {
-    return visible
+    return props.visible
   },
   set(newVisible) {
-    closeModal(newVisible)
+    emit('update:visible', newVisible)
   },
 })
 
-function closeModal(newVisible = false) {
-  emit('update:visible', newVisible)
+function handleCloseModal() { // Renamed from closeModal to avoid conflict if store had one
+  emit('update:visible', false)
 }
 
 type ModalType = 'add' | 'edit'
@@ -95,84 +46,60 @@ const title = computed(() => {
     add: '添加车辆',
     edit: '编辑车辆',
   }
-  return titles[type]
+  return titles[props.type || 'add']
 })
 
-function UpdateFormModelByModalType() {
-  const handlers = {
-    add: () => {
-      formModel.value = { ...defaultFormModal }
-    },
-    edit: () => {
-      if (modalData) {
-        formModel.value = {
-          vehicle_id: modalData.vehicle_id,
-          type_id: modalData.type_id,
-          manufacture_date: modalData.manufacture_date,
-        }
-      }
-    },
-  }
-  handlers[type]()
-}
-
 watch(
-  () => visible,
+  () => props.visible,
   (newValue) => {
     if (newValue) {
-      UpdateFormModelByModalType()
-      if (vehicleTypeOptions.value.length === 0) {
-        loadVehicleTypes()
+      if (props.type === 'edit' && props.modalData) {
+        formModel.value = {
+          vehicle_id: props.modalData.vehicle_id,
+          type_id: props.modalData.type_id,
+          manufacture_date: props.modalData.manufacture_date,
+        }
       }
-      if (storeOptions.value.length === 0) {
-        loadStores()
+      else {
+        formModel.value = { ...defaultFormModal }
+      }
+      // Ensure types are loaded if modal is visible and types aren't loaded
+      // This check is important to avoid redundant calls if types are already loaded
+      if (vehicleInstanceStore.vehicleTypeOptions.length === 0 && !isLoadingTypes.value) {
+        vehicleInstanceStore.loadVehicleTypes()
       }
     }
   },
+  { immediate: true },
 )
 
 const isLoading = ref(false)
 async function handleSubmit() {
   isLoading.value = true
-  // 构建发送到后端的数据，严格按照后端API要求
-  const dataToSend = {
+  const dataToSubmit = { // Renamed to avoid conflict with existing dataToSend
     type_id: formModel.value.type_id as number,
     manufacture_date: formModel.value.manufacture_date as string,
   }
 
-  // 校验关键字段
-  if (!dataToSend.type_id) {
+  if (!dataToSubmit.type_id) {
     window.$message.error('请选择车辆类型')
     isLoading.value = false
     return
   }
-  if (!dataToSend.manufacture_date) {
+  if (!dataToSubmit.manufacture_date) {
     window.$message.error('请输入生产日期')
     isLoading.value = false
     return
   }
 
   try {
-    if (type === 'edit') {
-      if (formModel.value.vehicle_id === undefined) {
-        console.error('更新车辆时缺少车辆ID')
-        window.$message.error('更新失败：车辆ID缺失')
-        isLoading.value = false
-        return
-      }
-      await fetchUpdateVehicle(formModel.value.vehicle_id, dataToSend)
-      window.$message.success('车辆信息更新成功')
+    if (props.type === 'edit' && props.modalData && props.modalData.vehicle_id !== undefined) {
+      await vehicleInstanceStore.updateVehicle(props.modalData.vehicle_id, dataToSubmit)
     }
     else {
-      await fetchCreateVehicle(dataToSend)
-      window.$message.success('车辆添加成功')
+      await vehicleInstanceStore.createVehicle(dataToSubmit)
     }
     emit('success')
-    closeModal()
-  }
-  catch (error) {
-    console.error('提交车辆数据失败:', error)
-    window.$message.error(type === 'edit' ? '更新失败' : '添加失败')
   }
   finally {
     isLoading.value = false
@@ -213,12 +140,11 @@ async function handleSubmit() {
             class="w-full"
           />
         </n-form-item-grid-item>
-        <!-- 移除了车牌号、状态和所属店铺的表单项 -->
       </n-grid>
     </n-form>
     <template #action>
       <n-space justify="center">
-        <n-button @click="closeModal()">
+        <n-button @click="handleCloseModal">
           取消
         </n-button>
         <n-button type="primary" :loading="isLoading" @click="handleSubmit">
