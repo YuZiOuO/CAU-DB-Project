@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from backend.app import db
-from backend.app.models.models import Rental, User, Vehicle, Store
+from backend.app.models.models import Rental, User, Vehicle, Store, VehicleType
 from backend.app.utils.rental_utils import check_overdue_rentals, check_rental_overdue
 from datetime import datetime
 
@@ -78,7 +78,7 @@ def create_rental():
     current_user = User.query.get_or_404(current_user_id)
 
     data = request.json
-    required_fields = ('rental_store_id', 'expected_return_date', 'return_store_id')
+    required_fields = ('rental_store_id', 'expected_return_date', 'return_store_id', 'vehicle_type_id')
     if not data or not all(k in data for k in required_fields):
         return jsonify({
             'code': 400,
@@ -92,6 +92,14 @@ def create_rental():
         return jsonify({
             'code': 404,
             'msg': 'Rental store or return store not found'
+        }), 200
+
+    # Check if vehicle type exists
+    vehicle_type = VehicleType.query.get(data['vehicle_type_id'])
+    if not vehicle_type:
+        return jsonify({
+            'code': 404,
+            'msg': 'Vehicle type not found'
         }), 200
 
     # Parse and validate expected return date
@@ -114,6 +122,7 @@ def create_rental():
         rental_store_id=data['rental_store_id'],
         user_id=current_user_id,
         vehicle_id=None,  # Will be assigned by admin
+        vehicle_type_id=data['vehicle_type_id'],  # User's preferred vehicle type
         expected_return_date=expected_return_date,
         return_store_id=data['return_store_id'],
         rental_status='pending'
@@ -181,6 +190,13 @@ def approve_rental(rental_id):
         return jsonify({
             'code': 400,
             'msg': f'Cannot approve rental with status: {rental.rental_status}'
+        }), 200
+
+    # Check if vehicle type matches the requested vehicle type
+    if vehicle.type_id != rental.vehicle_type_id:
+        return jsonify({
+            'code': 400,
+            'msg': 'Vehicle type does not match the requested vehicle type'
         }), 200
 
     # Update rental with vehicle and change status to active
