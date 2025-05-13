@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { ref, onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import type { DataTableColumns, FormInst } from 'naive-ui'
 import { useBoolean } from '@/hooks'
 import { NButton, NPopconfirm, NSpace } from 'naive-ui'
@@ -101,7 +101,7 @@ onMounted(() => {
 })
 
 async function getVehicleList() {
-  loading.value = true
+  startLoading() // 使用 setTrue
   try {
     const res: any = await fetchGetVehicles() // Assuming fetchGetVehicles is defined
     allVehiclesData.value = res.data || []
@@ -113,13 +113,13 @@ async function getVehicleList() {
     displayData.value = []
   }
   finally {
-    loading.value = false
+    endLoading() // 使用 setFalse
   }
 }
 
 function handleFilter() {
-  searchLoading.value = true
-  loading.value = true
+  startSearchLoading() // 使用 setTrue
+  startLoading() // 使用 setTrue
 
   let filteredData = [...allVehiclesData.value]
 
@@ -150,8 +150,8 @@ function handleFilter() {
   }
 
   displayData.value = filteredData
-  loading.value = false
-  searchLoading.value = false
+  endLoading() // 使用 setFalse
+  endSearchLoading() // 使用 setFalse
 }
 
 function changePage(page: number, size: number) {

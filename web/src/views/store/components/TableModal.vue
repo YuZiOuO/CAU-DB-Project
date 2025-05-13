@@ -69,7 +69,7 @@ const isLoading = ref(false)
 async function handleSubmit() {
   isLoading.value = true
   // TODO: 在全局请求拦截或具体业务场景中处理API返回值校验
-  const dataToSend: { store_name: string; address: string; phone_number: string } = {
+  const dataToSend: { store_name: string, address: string, phone_number: string } = {
     store_name: formModel.value.store_name || '',
     address: formModel.value.address || '',
     phone_number: formModel.value.phone_number || '',

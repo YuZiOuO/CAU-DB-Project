@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { fetchCreateVehicle, fetchUpdateVehicle } from '@/service/api/vehicles'
 
 interface Props {

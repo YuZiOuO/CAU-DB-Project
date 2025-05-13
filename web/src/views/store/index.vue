@@ -75,7 +75,7 @@ onMounted(() => {
 })
 
 async function getStoreList() {
-  startLoading()
+  startLoading() // 使用 setTrue
   try {
     const res: any = await fetchGetStores()
     allStoresData.value = res.data || []
@@ -87,11 +87,13 @@ async function getStoreList() {
     displayData.value = []
   }
   finally {
-    endLoading()
+    endLoading() // 使用 setFalse
   }
 }
 
 function handleFilter() {
+  startLoading() // 使用 setTrue
+
   let filteredData = [...allStoresData.value]
 
   const nameFilter = model.value.condition_1.trim().toLowerCase()
@@ -117,6 +119,7 @@ function handleFilter() {
   }
 
   displayData.value = filteredData
+  endLoading() // 使用 setFalse
 }
 
 function changePage(page: number, size: number) {
