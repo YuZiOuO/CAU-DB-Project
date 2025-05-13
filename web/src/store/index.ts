@@ -9,6 +9,7 @@ export * from './tab'
 export * from './vehicle/typeStore'
 export * from './vehicle/instanceStore'
 export * from './storeModule'
+export * from './rentalStore' // 新增导出
 
 // 安装pinia全局状态库
 export function installPinia(app: App) {

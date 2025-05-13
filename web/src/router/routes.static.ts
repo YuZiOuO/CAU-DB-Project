@@ -86,7 +86,7 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     path: '/ticket/open',
     title: '发起租借单',
     requiresAuth: true,
-    componentPath: '/store/manage/index.vue',
+    componentPath: '/ticket/open/index.vue', // Updated componentPath
     id: 40,
     pid: 4,
   },
