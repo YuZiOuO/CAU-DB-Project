@@ -1,8 +1,12 @@
 {
 	"devDependencies": {
-		"simple-git-hooks": "^2.13.0"
+		"simple-git-hooks": "^2.13.0",
+		"concurrently": "^9.1.2"
 	},
 	"simple-git-hooks": {
 		"pre-commit": "cd web && pnpm lint-staged"
-	}
+	},
+	"scripts": {
+    "dev": "concurrently \"pnpm --filter ./web dev\" \"flask --app backend.run run\""
+  }
 }

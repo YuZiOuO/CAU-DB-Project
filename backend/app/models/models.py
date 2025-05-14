@@ -13,6 +13,7 @@ class VehicleType(db.Model):
 
     # Relationships
     vehicles = db.relationship('Vehicle', backref='type', lazy=True)
+    rentals = db.relationship('Rental', backref='vehicle_type', lazy=True, foreign_keys='Rental.vehicle_type_id')
 
     def to_dict(self):
         return {
@@ -119,7 +120,8 @@ class Rental(db.Model):
     rental_date = db.Column(db.Date, nullable=False)
     rental_store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
-    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicles.vehicle_id'), nullable=False)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicles.vehicle_id'), nullable=True)  # Changed to nullable
+    vehicle_type_id = db.Column(db.Integer, db.ForeignKey('vehicle_types.type_id'), nullable=True)  # Added field for user's preferred vehicle type
     expected_return_date = db.Column(db.Date, nullable=False)
     return_store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
     rental_status = db.Column(db.String(20), nullable=False, default='pending')  # pending, active, returned, cancelled, extension_requested
@@ -132,12 +134,14 @@ class Rental(db.Model):
             'rental_store_id': self.rental_store_id,
             'user_id': self.user_id,
             'vehicle_id': self.vehicle_id,
+            'vehicle_type_id': self.vehicle_type_id,
             'expected_return_date': self.expected_return_date.strftime('%Y-%m-%d'),
             'return_store_id': self.return_store_id,
             'rental_status': self.rental_status,
             'is_overdue': self.is_overdue,
             'user': self.user.to_dict() if self.user else None,
             'vehicle': self.vehicle.to_dict() if self.vehicle else None,
+            'vehicle_type': self.vehicle_type.to_dict() if self.vehicle_type else None,
             'rental_store': self.rental_store.to_dict() if self.rental_store else None,
             'return_store': self.return_store.to_dict() if self.return_store else None
         }
