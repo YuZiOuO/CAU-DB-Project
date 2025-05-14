@@ -26,21 +26,25 @@ export const useStoreModule = defineStore('store-module', {
     loading: false,
     searchLoading: false,
     filterModel: { ...initialFilterModel },
-    // formRef: null,
   }),
   actions: {
     async fetchStores() {
       this.loading = true
       try {
         const res: any = await fetchGetStores()
-        this.items = res.data || []
-        this.displayedItems = [...this.items]
+        if (res.isSuccess) {
+          this.items = res.data || []
+          this.displayedItems = [...this.items]
+        }
+        else {
+          this.items = []
+          this.displayedItems = []
+        }
       }
       catch (error) {
         console.error('获取门店列表失败:', error)
         this.items = []
         this.displayedItems = []
-        window.$message.error('获取门店列表失败')
       }
       finally {
         this.loading = false
@@ -78,13 +82,14 @@ export const useStoreModule = defineStore('store-module', {
         phone_number: itemData.phone_number || '',
       }
       try {
-        await fetchCreateStores(dataToSave)
-        window.$message.success('门店添加成功')
-        await this.fetchStores()
+        const res: any = await fetchCreateStores(dataToSave)
+        if (res.isSuccess) {
+          window.$message.success('门店添加成功')
+          await this.fetchStores()
+        }
       }
       catch (error) {
         console.error('添加门店失败:', error)
-        window.$message.error('添加失败')
         throw error
       }
       finally {
@@ -98,13 +103,14 @@ export const useStoreModule = defineStore('store-module', {
         phone_number: itemData.phone_number || '',
       }
       try {
-        await fetchUpdateStore(storeId, dataToSave)
-        window.$message.success('门店信息更新成功')
-        await this.fetchStores()
+        const res: any = await fetchUpdateStore(storeId, dataToSave)
+        if (res.isSuccess) {
+          window.$message.success('门店信息更新成功')
+          await this.fetchStores()
+        }
       }
       catch (error) {
         console.error('更新门店失败:', error)
-        window.$message.error('更新失败')
         throw error
       }
       finally {
@@ -114,13 +120,14 @@ export const useStoreModule = defineStore('store-module', {
     async deleteStore(storeId: number) {
       this.loading = true
       try {
-        await fetchDeleteStore(String(storeId))
-        window.$message.success('删除成功')
-        await this.fetchStores()
+        const res: any = await fetchDeleteStore(String(storeId))
+        if (res.isSuccess) {
+          window.$message.success('删除成功')
+          await this.fetchStores()
+        }
       }
       catch (error) {
         console.error('删除门店失败:', error)
-        window.$message.error('删除失败')
       }
       finally {
         this.loading = false
