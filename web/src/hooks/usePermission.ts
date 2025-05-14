@@ -13,7 +13,7 @@ export function usePermission() {
 
     if (!authStore.userInfo)
       return false
-    const { role } = authStore.userInfo
+    const { role = [] } = authStore.userInfo.user
 
     // 角色为super可直接通过
     let has = role.includes('super')

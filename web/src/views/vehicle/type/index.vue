@@ -87,11 +87,6 @@ const columns: DataTableColumns<Entity.VehicleType> = [
     },
   },
 ]
-
-function changePage(page: number, size: number) {
-  window.$message.success(`分页器:${page},${size}`)
-  // 如果需要，在这里添加实际的分页逻辑
-}
 </script>
 
 <template>
@@ -132,13 +127,13 @@ function changePage(page: number, size: number) {
             新建车辆类型
           </NButton>
           <!-- 其他按钮占位符 -->
-          <NButton strong secondary>
+          <NButton strong secondary disabled>
             <template #icon>
               <icon-park-outline-afferent />
             </template>
             批量导入
           </NButton>
-          <NButton strong secondary class="ml-a">
+          <NButton strong secondary class="ml-a" disabled>
             <template #icon>
               <icon-park-outline-download />
             </template>
@@ -146,8 +141,6 @@ function changePage(page: number, size: number) {
           </NButton>
         </div>
         <n-data-table :columns="columns" :data="displayedItems" :loading="loading" />
-        <!-- 如果您有实际的分页组件，请替换 Pagination，或使用 Naive UI 的分页组件 -->
-        <Pagination :count="displayedItems.length" @change="changePage" /> <!-- 调整 count 属性 -->
         <TableModal v-model:visible="isModalVisible" :type="modalType" :modal-data="editingItem" @success="() => { vehicleTypeStore.fetchVehicleTypes(); closeModal(); }" />
       </NSpace>
     </n-card>
