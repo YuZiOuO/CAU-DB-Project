@@ -6,7 +6,7 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     requiresAuth: true,
     icon: 'icon-park-outline:analysis',
     menuType: 'dir',
-    componentPath: null,
+    componentPath: '/dashboard/overview/index.vue',
     id: 1,
     pid: null,
   },
