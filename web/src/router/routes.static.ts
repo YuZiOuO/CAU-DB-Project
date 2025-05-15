@@ -97,7 +97,7 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     title: '用户设置',
     requiresAuth: true,
     icon: 'icon-park-outline:every-user',
-    componentPath: '/setting/account/index.vue',
+    componentPath: '/users/index.vue',
     id: 36,
     pid: 35,
   },
