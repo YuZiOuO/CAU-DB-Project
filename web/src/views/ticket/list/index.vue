@@ -1,29 +1,123 @@
 <script setup lang="tsx">
+// 导入所需模块和类型
 import { computed, onMounted, ref } from 'vue'
-import type { DataTableColumns } from 'naive-ui'
-import { NButton, NDatePicker, NPopconfirm, NSelect, NSpace, NTag, useDialog } from 'naive-ui'
-import { useAuthStore, useRentalStore } from '@/store'
+import type { DataTableColumns, SelectOption } from 'naive-ui'
+import { NButton, NPopconfirm, NSpace, NTag } from 'naive-ui'
+import { useAuthStore, useRentalStore, useVehicleTypeStore } from '@/store'
 import { storeToRefs } from 'pinia'
+import RentalSearchForm from './components/RentalSearchForm.vue'
+import ApproveRentalModal from './components/ApproveRentalModal.vue'
+import RequestExtensionModal from './components/RequestExtensionModal.vue'
+import RejectExtensionModal from './components/RejectExtensionModal.vue'
+import RentalHistoryModal from './components/RentalHistoryModal.vue' // 新增导入
 
+// 初始化 Store
 const rentalStore = useRentalStore()
 const authStore = useAuthStore()
-const dialog = useDialog()
+const vehicleTypeStore = useVehicleTypeStore()
 
+// 从 Store 中获取响应式数据
 const { displayedItems, loading, itemLoading, vehicleOptions, vehicleLoading } = storeToRefs(rentalStore)
 const { userInfo } = storeToRefs(authStore)
-// 更新 userRole 计算属性以正确访问嵌套的 role，并确保在 userInfo.value 或 userInfo.value.user 不存在时安全处理
+const { items: allVehicleTypes, loading: vehicleTypesLoading } = storeToRefs(vehicleTypeStore)
+
+// 计算当前用户角色
 const userRole = computed(() => userInfo.value?.user?.role || [])
 
+// 定义激活的筛选条件
+const activeFilterUserName = ref('')
+const activeFilterVehicleType = ref<number[] | null>(null)
+const activeFilterStatus = ref<string[] | null>(null)
+
+// 计算车辆类型下拉选项
+const vehicleTypeSelectOptions = computed<SelectOption[]>(() => {
+  if (!allVehicleTypes.value)
+    return []
+  return allVehicleTypes.value.map(vt => ({
+    label: `${vt.brand} ${vt.model}`,
+    value: vt.type_id,
+  }))
+})
+
+// 定义状态下拉选项
+const statusOptions: SelectOption[] = [
+  { label: '待处理', value: 'pending' },
+  { label: '进行中', value: 'active' },
+  { label: '已归还', value: 'returned' },
+  { label: '已取消', value: 'cancelled' },
+  { label: '请求延期中', value: 'extension_requested' },
+]
+
+// 处理搜索操作
+function handleDoSearch(filters: { userName: string, vehicleType: number[] | null, status: string[] | null }) {
+  activeFilterUserName.value = filters.userName
+  activeFilterVehicleType.value = filters.vehicleType
+  activeFilterStatus.value = filters.status
+}
+
+// 处理清除搜索操作
+function handleDoClearSearch() {
+  activeFilterUserName.value = ''
+  activeFilterVehicleType.value = null
+  activeFilterStatus.value = null
+}
+
+// 计算筛选后的租借单列表
+const filteredDisplayedItems = computed(() => {
+  const userNameFilter = activeFilterUserName.value.toLowerCase().trim()
+  const vehicleTypeIdArray = activeFilterVehicleType.value
+  const statusFilterArray = activeFilterStatus.value
+
+  if (!userNameFilter && (!vehicleTypeIdArray || vehicleTypeIdArray.length === 0) && (!statusFilterArray || statusFilterArray.length === 0)) {
+    return displayedItems.value
+  }
+
+  return displayedItems.value.filter((row) => {
+    let matchesUserName = true
+    if (userNameFilter) {
+      matchesUserName = row.user?.name?.toLowerCase().includes(userNameFilter) ?? false
+    }
+
+    let matchesVehicleType = true
+    if (vehicleTypeIdArray && vehicleTypeIdArray.length > 0) {
+      let vehicleTypeMatched = false
+      if (row.vehicle_id && row.vehicle_id !== -1) {
+        const vehicle = rentalStore.getVehicleById(row.vehicle_id)
+        if (vehicle && vehicle.type_id && vehicleTypeIdArray.includes(vehicle.type_id)) {
+          vehicleTypeMatched = true
+        }
+      }
+      if (!vehicleTypeMatched && row.vehicle_type_id && vehicleTypeIdArray.includes(row.vehicle_type_id)) {
+        vehicleTypeMatched = true
+      }
+      matchesVehicleType = vehicleTypeMatched
+    }
+
+    let matchesStatus = true
+    if (statusFilterArray && statusFilterArray.length > 0) {
+      matchesStatus = row.rental_status ? statusFilterArray.includes(row.rental_status) : false
+    }
+
+    return matchesUserName && matchesVehicleType && matchesStatus
+  })
+})
+
+// 组件挂载时获取初始数据
 onMounted(() => {
   rentalStore.fetchRentalsList()
-  rentalStore.fetchVehicleTypes() // Fetch all vehicle types for display
-  // Preload vehicle options if user might approve rentals
-  // fetchVehicleOptions is assumed to load vehicle data into the store for getVehicleById
+  // Ensure vehicle types are fetched for the main list and history modal
+  if (vehicleTypeStore.items.length === 0) {
+    vehicleTypeStore.fetchVehicleTypes()
+  }
+  // Ensure vehicle instances are fetched if admin, for approve modal and potentially history details
   if (userRole.value?.includes('admin') || userRole.value?.includes('super')) {
-    rentalStore.fetchVehicleOptions()
+    if (rentalStore.vehicleOptions.length === 0) { // vehicleOptions might be vehicle instances
+      rentalStore.fetchVehicleOptions()
+    }
   }
 })
 
+// 根据租借状态获取对应的标签类型
 function getStatusType(status: Entity.RentalStatus) {
   switch (status) {
     case 'pending': return 'warning'
@@ -35,6 +129,53 @@ function getStatusType(status: Entity.RentalStatus) {
   }
 }
 
+// 模态框状态管理
+const showApproveModal = ref(false)
+const showRequestExtensionModal = ref(false)
+const showRejectExtensionModal = ref(false)
+const showRentalHistoryModal = ref(false) // 新增历史模态框状态
+const currentRentalForModal = ref<Entity.Rental | null>(null)
+
+// 打开批准模态框
+function openApproveModal(rental: Entity.Rental) {
+  currentRentalForModal.value = rental
+  showApproveModal.value = true
+}
+
+// 处理批准操作
+function handleApproveAction(payload: { rentalId: number, vehicleId: number }) {
+  rentalStore.approveRental(payload.rentalId, payload.vehicleId)
+}
+
+// 打开请求延期模态框
+function openRequestExtensionModal(rental: Entity.Rental) {
+  currentRentalForModal.value = rental
+  showRequestExtensionModal.value = true
+}
+
+// 处理请求延期操作
+function handleRequestExtensionAction(payload: { rentalId: number, newDate: string }) {
+  rentalStore.requestRentalExtension(payload.rentalId, payload.newDate)
+}
+
+// 打开拒绝延期模态框
+function openRejectExtensionModal(rental: Entity.Rental) {
+  currentRentalForModal.value = rental
+  showRejectExtensionModal.value = true
+}
+
+// 处理拒绝延期操作
+function handleRejectExtensionAction(payload: { rentalId: number, originalDate: string }) {
+  rentalStore.rejectRentalExtension(payload.rentalId, payload.originalDate)
+}
+
+// 新增：打开历史模态框
+function openRentalHistoryModal(rental: Entity.Rental) {
+  currentRentalForModal.value = rental
+  showRentalHistoryModal.value = true
+}
+
+// 定义数据表格的列
 const columns: DataTableColumns<Entity.Rental> = [
   { title: 'ID', key: 'rental_id', align: 'center', width: 80 },
   { title: '用户', key: 'user.name', align: 'center', render: row => row.user?.name || 'N/A' },
@@ -44,7 +185,6 @@ const columns: DataTableColumns<Entity.Rental> = [
     align: 'center',
     render: (row) => {
       if (row.vehicle_id && row.vehicle_id !== -1) {
-        // Assume rentalStore.getVehicleById and rentalStore.getVehicleTypeById exist
         const vehicle = rentalStore.getVehicleById(row.vehicle_id)
         if (vehicle && vehicle.type_id) {
           const vehicleType = rentalStore.getVehicleTypeById(vehicle.type_id)
@@ -63,7 +203,6 @@ const columns: DataTableColumns<Entity.Rental> = [
     align: 'center',
     render: (row) => {
       if (row.vehicle_type_id) {
-        // Assume rentalStore.getVehicleTypeById exists
         const vehicleType = rentalStore.getVehicleTypeById(row.vehicle_type_id)
         if (vehicleType && vehicleType.brand && vehicleType.model) {
           return `${vehicleType.brand} ${vehicleType.model}`
@@ -89,15 +228,12 @@ const columns: DataTableColumns<Entity.Rental> = [
     key: 'actions',
     align: 'center',
     fixed: 'right',
-    width: 280,
+    width: 280, // Adjusted width if needed
     render: (row) => {
-      // 更新 userRole 的获取方式，从 userInfo.value.user.role 获取
-      const userRole = userInfo.value?.user?.role || []
-      // 更新 isStoreAdmin 的判断，从 userInfo.value.user.managed_store_id 获取
-      const isStoreAdmin = userRole.includes('admin') && userInfo.value?.user?.managed_store_id
-      const isSuperAdmin = userRole.includes('super')
+      const userRoleVal = userInfo.value?.user?.role || []
+      const isStoreAdmin = userRoleVal.includes('admin') && userInfo.value?.user?.managed_store_id
+      const isSuperAdmin = userRoleVal.includes('super')
       const isAdmin = isStoreAdmin || isSuperAdmin
-      // 更新 isOwner 的判断，从 userInfo.value.user.user_id 获取
       const isOwner = row.user_id === userInfo.value?.user?.user_id
 
       const canApprove = isAdmin && row.rental_status === 'pending'
@@ -117,8 +253,9 @@ const columns: DataTableColumns<Entity.Rental> = [
 
       return (
         <NSpace justify="center">
+          <NButton size="small" type="default" onClick={() => openRentalHistoryModal(row)}>查看</NButton>
           {canApprove && (
-            <NButton size="small" type="primary" loading={itemLoading.value[row.rental_id]} onClick={() => handleApprove(row)}>批准</NButton>
+            <NButton size="small" type="primary" loading={itemLoading.value[row.rental_id]} onClick={() => openApproveModal(row)}>批准</NButton>
           )}
           {canReturn && (
             <NPopconfirm onPositiveClick={() => rentalStore.returnRental(row.rental_id)}>
@@ -126,14 +263,14 @@ const columns: DataTableColumns<Entity.Rental> = [
             </NPopconfirm>
           )}
           {canRequestExtension && (
-            <NButton size="small" type="warning" loading={itemLoading.value[row.rental_id]} onClick={() => handleRequestExtension(row)}>请求延期</NButton>
+            <NButton size="small" type="warning" loading={itemLoading.value[row.rental_id]} onClick={() => openRequestExtensionModal(row)}>请求延期</NButton>
           )}
           {canManageExtension && (
             <>
               <NPopconfirm onPositiveClick={() => rentalStore.approveRentalExtension(row.rental_id)}>
                 {{ default: () => '批准延期?', trigger: () => <NButton size="small" type="success" loading={itemLoading.value[row.rental_id]}>批准延期</NButton> }}
               </NPopconfirm>
-              <NButton size="small" type="error" loading={itemLoading.value[row.rental_id]} onClick={() => handleRejectExtension(row)}>拒绝延期</NButton>
+              <NButton size="small" type="error" loading={itemLoading.value[row.rental_id]} onClick={() => openRejectExtensionModal(row)}>拒绝延期</NButton>
             </>
           )}
           {(canCancelUser || canCancelAdmin) && (
@@ -146,148 +283,53 @@ const columns: DataTableColumns<Entity.Rental> = [
     },
   },
 ]
-
-function handleApprove(rental: Entity.Rental) {
-  let selectedVehicleId: number | null = null
-
-  // 根据当前租借单的 vehicle_type_id 筛选车辆选项
-  // vehicleOptions is already from Pinia store.
-  // Each option in vehicleOptions should have a 'type_id' property for this filter to work.
-  const filteredOptions = computed(() => {
-    if (!vehicleOptions.value)
-      return []
-    // option should have type_id, e.g. { label: string, value: number, type_id: number }
-    return vehicleOptions.value.filter(
-      option => (option as any).type_id === rental.vehicle_type_id,
-    )
-  })
-
-  dialog.create({
-    title: '批准租借并分配车辆',
-    content: () => (
-      <NSelect
-        placeholder="请选择车辆"
-        options={filteredOptions.value} // 使用计算后的筛选选项
-        loading={vehicleLoading.value} // 仍然使用全局的车辆选项加载状态
-        filterable
-        onUpdateValue={(value) => { selectedVehicleId = value }}
-      />
-    ),
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: () => {
-      if (selectedVehicleId) {
-        rentalStore.approveRental(rental.rental_id, selectedVehicleId)
-      }
-      else {
-        if (!vehicleLoading.value && filteredOptions.value.length === 0) {
-          window.$message.error(`当前没有符合所请求车辆类型 (ID: ${rental.vehicle_type_id}) 且可用的车辆。`)
-        }
-        else {
-          window.$message.error('请选择一辆车')
-        }
-        return false // Prevent dialog from closing
-      }
-    },
-  })
-}
-
-function handleRequestExtension(rental: Entity.Rental) {
-  let newDate: string | null = rental.expected_return_date // Default to current
-  const todayTimestamp = new Date(rental.expected_return_date).getTime()
-
-  dialog.create({
-    title: '请求延长归还日期',
-    content: () => (
-      <NDatePicker
-        type="date"
-        defaultValue={todayTimestamp}
-        isDateDisabled={ts => ts <= todayTimestamp} // Must be after current expected return date
-        onUpdateFormattedValue={(value) => { newDate = value }}
-        valueFormat="yyyy-MM-dd"
-        style={{ width: '100%' }}
-      />
-    ),
-    positiveText: '提交请求',
-    negativeText: '取消',
-    onPositiveClick: () => {
-      if (newDate && newDate > rental.expected_return_date) {
-        rentalStore.requestRentalExtension(rental.rental_id, newDate)
-      }
-      else {
-        window.$message.error('新的归还日期必须晚于当前归还日期')
-        return false
-      }
-    },
-  })
-}
-
-function handleRejectExtension(rental: Entity.Rental) {
-  // API requires original_return_date. This is problematic as frontend might not have it.
-  // For now, we'll prompt or use a placeholder. This needs a better solution.
-  // The `rental.expected_return_date` at this point is the *newly requested* date.
-  // We need the date *before* the extension was requested.
-  let originalDateInput: string = '' // Placeholder for prompt
-  dialog.create({
-    title: '拒绝延期请求',
-    content: () => (
-      <NSpace vertical>
-        <p>
-          当前请求的归还日期:
-          {rental.expected_return_date}
-        </p>
-        <p>请输入该租借单在发起延期请求前的“原始归还日期”以拒绝延期：</p>
-        <NDatePicker
-          type="date"
-          onUpdateFormattedValue={(value) => { originalDateInput = value as string }}
-          valueFormat="yyyy-MM-dd"
-          placeholder="YYYY-MM-DD"
-          style={{ width: '100%' }}
-        />
-      </NSpace>
-    ),
-    positiveText: '确认拒绝',
-    negativeText: '取消',
-    onPositiveClick: () => {
-      if (!originalDateInput) {
-        window.$message.error('请输入原始归还日期')
-        return false
-      }
-      // Validate originalDateInput format if necessary
-      try {
-        const parsedDate = new Date(originalDateInput)
-        if (isNaN(parsedDate.getTime()))
-          throw new Error('Invalid date')
-        // Further validation: originalDateInput should ideally be before rental.expected_return_date (the new one)
-        if (new Date(originalDateInput) >= new Date(rental.expected_return_date)) {
-          window.$message.error('原始归还日期必须早于当前请求的归还日期。')
-          return false
-        }
-      }
-      catch (e) {
-        window.$message.error('原始归还日期格式无效，请使用 YYYY-MM-DD')
-        return false
-      }
-      rentalStore.rejectRentalExtension(rental.rental_id, originalDateInput)
-    },
-  })
-}
 </script>
 
 <template>
-  <n-card title="租借单列表">
-    <NSpace vertical size="large">
+  <NSpace vertical size="large">
+    <n-card :bordered="false">
+      <RentalSearchForm
+        :vehicle-type-select-options="vehicleTypeSelectOptions"
+        :vehicle-types-loading="vehicleTypesLoading"
+        :status-options="statusOptions"
+        @search="handleDoSearch"
+        @clear="handleDoClearSearch"
+      />
+    </n-card>
+
+    <n-card title="租借单列表">
       <n-data-table
         :columns="columns"
-        :data="displayedItems"
+        :data="filteredDisplayedItems"
         :loading="loading"
         :scroll-x="1800"
         remote
         striped
       />
-      <!-- Add pagination if needed -->
-    </NSpace>
-  </n-card>
+    </n-card>
+
+    <ApproveRentalModal
+      v-model:show="showApproveModal"
+      :rental="currentRentalForModal"
+      :vehicle-options="vehicleOptions"
+      :vehicle-loading="vehicleLoading"
+      @approve="handleApproveAction"
+    />
+    <RequestExtensionModal
+      v-model:show="showRequestExtensionModal"
+      :rental="currentRentalForModal"
+      @request-extension="handleRequestExtensionAction"
+    />
+    <RejectExtensionModal
+      v-model:show="showRejectExtensionModal"
+      :rental="currentRentalForModal"
+      @reject-extension="handleRejectExtensionAction"
+    />
+    <RentalHistoryModal
+      v-model:show="showRentalHistoryModal"
+      :rental="currentRentalForModal"
+    />
+  </NSpace>
 </template>
 
 <style scoped>

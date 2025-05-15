@@ -36,14 +36,19 @@ export const useVehicleInstanceStore = defineStore('vehicle-instance', {
       this.loading = true
       try {
         const res: any = await fetchGetVehicles()
-        this.items = res.data || []
-        this.displayedItems = [...this.items]
+        if (res.isSuccess) {
+          this.items = res.data || []
+          this.displayedItems = [...this.items]
+        }
+        else {
+          this.items = []
+          this.displayedItems = []
+        }
       }
       catch (error) {
         console.error('获取车辆列表失败:', error)
         this.items = []
         this.displayedItems = []
-        window.$message.error('获取车辆列表失败')
       }
       finally {
         this.loading = false
@@ -53,16 +58,19 @@ export const useVehicleInstanceStore = defineStore('vehicle-instance', {
       this.isLoadingTypes = true
       try {
         const res: any = await fetchGetVehicleTypes()
-        if (res.data) {
+        if (res.isSuccess && res.data) {
           this.vehicleTypeOptions = res.data.map((vt: Entity.VehicleType) => ({
             label: `${vt.brand} ${vt.model} (￥${vt.daily_rent_price.toFixed(2)})`,
             value: vt.type_id,
           }))
         }
+        else if (!res.isSuccess) {
+          this.vehicleTypeOptions = []
+        }
       }
       catch (error) {
         console.error('获取车辆类型失败:', error)
-        window.$message.error('获取车辆类型失败')
+        this.vehicleTypeOptions = []
       }
       finally {
         this.isLoadingTypes = false
@@ -92,13 +100,14 @@ export const useVehicleInstanceStore = defineStore('vehicle-instance', {
     async createVehicle(itemData: { type_id: number, manufacture_date: string }) {
       this.loading = true
       try {
-        await fetchCreateVehicle(itemData)
-        window.$message.success('车辆添加成功')
-        await this.fetchVehicles()
+        const res: any = await fetchCreateVehicle(itemData)
+        if (res.isSuccess) {
+          window.$message.success('车辆添加成功')
+          await this.fetchVehicles()
+        }
       }
       catch (error) {
         console.error('添加车辆失败:', error)
-        window.$message.error('添加失败')
         throw error
       }
       finally {
@@ -108,13 +117,14 @@ export const useVehicleInstanceStore = defineStore('vehicle-instance', {
     async updateVehicle(vehicleId: number, itemData: { type_id: number, manufacture_date: string }) {
       this.loading = true
       try {
-        await fetchUpdateVehicle(vehicleId, itemData)
-        window.$message.success('车辆信息更新成功')
-        await this.fetchVehicles()
+        const res: any = await fetchUpdateVehicle(vehicleId, itemData)
+        if (res.isSuccess) {
+          window.$message.success('车辆信息更新成功')
+          await this.fetchVehicles()
+        }
       }
       catch (error) {
         console.error('更新车辆失败:', error)
-        window.$message.error('更新失败')
         throw error
       }
       finally {
@@ -124,13 +134,14 @@ export const useVehicleInstanceStore = defineStore('vehicle-instance', {
     async deleteVehicle(vehicleId: number) {
       this.loading = true
       try {
-        await fetchDeleteVehicle(vehicleId)
-        window.$message.success('删除成功')
-        await this.fetchVehicles()
+        const res: any = await fetchDeleteVehicle(vehicleId)
+        if (res.isSuccess) {
+          window.$message.success('删除成功')
+          await this.fetchVehicles()
+        }
       }
       catch (error) {
         console.error('删除车辆失败:', error)
-        window.$message.error('删除失败')
       }
       finally {
         this.loading = false

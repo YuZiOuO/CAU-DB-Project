@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue' // Removed onMounted as loadVehicleTypes is called conditionally
-import type { SelectOption } from 'naive-ui'
+import { computed, ref, watch } from 'vue'
 import { useVehicleInstanceStore } from '@/store'
-import { storeToRefs } from 'pinia' // Import storeToRefs
+import { storeToRefs } from 'pinia'
 
 interface Props {
   visible: boolean
@@ -14,7 +13,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const vehicleInstanceStore = useVehicleInstanceStore()
-const { vehicleTypeOptions, isLoadingTypes } = storeToRefs(vehicleInstanceStore) // Use storeToRefs for reactive access
+const { vehicleTypeOptions, isLoadingTypes } = storeToRefs(vehicleInstanceStore)
 
 const defaultFormModal: { type_id: number | null, manufacture_date: string } = {
   type_id: null,
@@ -36,7 +35,7 @@ const modalVisible = computed({
   },
 })
 
-function handleCloseModal() { // Renamed from closeModal to avoid conflict if store had one
+function handleCloseModal() {
   emit('update:visible', false)
 }
 

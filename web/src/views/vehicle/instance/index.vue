@@ -5,7 +5,8 @@ import { NButton, NPopconfirm, NSpace } from 'naive-ui'
 import TableModal from './components/TableModal.vue'
 import { useVehicleInstanceStore } from '@/store'
 import { storeToRefs } from 'pinia'
-import { useBoolean } from '@/hooks' // 引入 useBoolean
+import { useBoolean, usePermission } from '@/hooks' // 引入 useBoolean 和 usePermission
+import { useRouter } from 'vue-router' // 引入 useRouter
 
 const vehicleInstanceStore = useVehicleInstanceStore()
 const {
@@ -15,6 +16,9 @@ const {
   filterModel,
 } = storeToRefs(vehicleInstanceStore)
 
+const { hasPermission } = usePermission() // 初始化 usePermission
+const router = useRouter() // 获取 router 实例
+
 const { bool: isModalVisible, setTrue: openModal, setFalse: closeModal } = useBoolean(false)
 const modalType = ref<'add' | 'edit'>('add')
 const editingItem = ref<Entity.Vehicle | null>(null)
@@ -22,6 +26,11 @@ const editingItem = ref<Entity.Vehicle | null>(null)
 const formRef = ref<FormInst | null>(null)
 
 onMounted(() => {
+  // 检查用户是否不具有 'admin' 或 'super' 权限
+  if (!hasPermission(['admin', 'super'])) {
+    router.push('/403') // 重定向到 403 页面
+    return // 阻止进一步执行
+  }
   vehicleInstanceStore.fetchVehicles()
   // Optionally load types if not already loaded by modal logic
   if (vehicleInstanceStore.vehicleTypeOptions.length === 0) {
@@ -85,13 +94,14 @@ const columns: DataTableColumns<Entity.Vehicle> = [
           <NButton
             size="small"
             onClick={() => handleEditTable(row)}
+            disabled={!hasPermission(['admin', 'super'])}
           >
             编辑
           </NButton>
-          <NPopconfirm onPositiveClick={() => handleDelete(row.vehicle_id)}>
+          <NPopconfirm onPositiveClick={() => handleDelete(row.vehicle_id)} disabled={!hasPermission(['admin', 'super'])}>
             {{
               default: () => '确认删除',
-              trigger: () => <NButton size="small" type="error">删除</NButton>,
+              trigger: () => <NButton size="small" type="error" disabled={!hasPermission(['admin', 'super'])}>删除</NButton>,
             }}
           </NPopconfirm>
         </NSpace>
@@ -102,7 +112,6 @@ const columns: DataTableColumns<Entity.Vehicle> = [
 
 function changePage(page: number, size: number) {
   window.$message.success(`分页器:${page},${size}`)
-  // Add actual pagination logic if needed
 }
 </script>
 
@@ -138,20 +147,20 @@ function changePage(page: number, size: number) {
     <n-card>
       <NSpace vertical size="large">
         <div class="flex gap-4">
-          <NButton type="primary" @click="handleAddTable">
+          <NButton type="primary" :disabled="!hasPermission(['admin', 'super'])" @click="handleAddTable">
             <template #icon>
               <icon-park-outline-add-one />
             </template>
             新建车辆
           </NButton>
           <!-- Placeholder for other buttons -->
-          <NButton strong secondary>
+          <NButton strong secondary disabled>
             <template #icon>
               <icon-park-outline-afferent />
             </template>
             批量导入
           </NButton>
-          <NButton strong secondary class="ml-a">
+          <NButton strong secondary class="ml-a" disabled>
             <template #icon>
               <icon-park-outline-download />
             </template>

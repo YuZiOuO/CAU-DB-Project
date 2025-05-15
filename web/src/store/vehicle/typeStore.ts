@@ -30,14 +30,19 @@ export const useVehicleTypeStore = defineStore('vehicle-type', {
       this.loading = true
       try {
         const res: any = await fetchGetVehicleTypes()
-        this.items = res.data || []
-        this.displayedItems = [...this.items]
+        if (res.isSuccess) {
+          this.items = res.data || []
+          this.displayedItems = [...this.items]
+        }
+        else {
+          this.items = []
+          this.displayedItems = []
+        }
       }
       catch (error) {
         console.error('获取车辆类型列表失败:', error)
         this.items = []
         this.displayedItems = []
-        window.$message.error('获取车辆类型列表失败')
       }
       finally {
         this.loading = false
@@ -67,14 +72,15 @@ export const useVehicleTypeStore = defineStore('vehicle-type', {
     async createVehicleType(itemData: Omit<Entity.VehicleType, 'type_id'>) {
       this.loading = true
       try {
-        await fetchCreateVehicleType(itemData)
-        window.$message.success('车辆类型添加成功')
-        await this.fetchVehicleTypes()
+        const res: any = await fetchCreateVehicleType(itemData)
+        if (res.isSuccess) {
+          window.$message.success('车辆类型添加成功')
+          await this.fetchVehicleTypes()
+        }
       }
       catch (error) {
         console.error('添加车辆类型失败:', error)
-        window.$message.error('添加失败')
-        throw error // Re-throw to allow component to handle UI
+        throw error
       }
       finally {
         this.loading = false
@@ -83,14 +89,15 @@ export const useVehicleTypeStore = defineStore('vehicle-type', {
     async updateVehicleType(typeId: number, itemData: Omit<Entity.VehicleType, 'type_id'>) {
       this.loading = true
       try {
-        await fetchUpdateVehicleType(typeId, itemData)
-        window.$message.success('车辆类型信息更新成功')
-        await this.fetchVehicleTypes()
+        const res: any = await fetchUpdateVehicleType(typeId, itemData)
+        if (res.isSuccess) {
+          window.$message.success('车辆类型信息更新成功')
+          await this.fetchVehicleTypes()
+        }
       }
       catch (error) {
         console.error('更新车辆类型失败:', error)
-        window.$message.error('更新失败')
-        throw error // Re-throw to allow component to handle UI
+        throw error
       }
       finally {
         this.loading = false
@@ -99,13 +106,14 @@ export const useVehicleTypeStore = defineStore('vehicle-type', {
     async deleteVehicleType(typeId: number) {
       this.loading = true
       try {
-        await fetchDeleteVehicleType(typeId)
-        window.$message.success('删除成功')
-        await this.fetchVehicleTypes()
+        const res: any = await fetchDeleteVehicleType(typeId)
+        if (res.isSuccess) {
+          window.$message.success('删除成功')
+          await this.fetchVehicleTypes()
+        }
       }
       catch (error) {
         console.error('删除车辆类型失败:', error)
-        window.$message.error('删除失败')
       }
       finally {
         this.loading = false
