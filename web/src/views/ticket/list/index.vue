@@ -9,6 +9,7 @@ import RentalSearchForm from './components/RentalSearchForm.vue'
 import ApproveRentalModal from './components/ApproveRentalModal.vue'
 import RequestExtensionModal from './components/RequestExtensionModal.vue'
 import RejectExtensionModal from './components/RejectExtensionModal.vue'
+import RentalHistoryModal from './components/RentalHistoryModal.vue' // 新增导入
 
 // 初始化 Store
 const rentalStore = useRentalStore()
@@ -104,9 +105,15 @@ const filteredDisplayedItems = computed(() => {
 // 组件挂载时获取初始数据
 onMounted(() => {
   rentalStore.fetchRentalsList()
-  rentalStore.fetchVehicleTypes()
+  // Ensure vehicle types are fetched for the main list and history modal
+  if (vehicleTypeStore.items.length === 0) {
+    vehicleTypeStore.fetchVehicleTypes()
+  }
+  // Ensure vehicle instances are fetched if admin, for approve modal and potentially history details
   if (userRole.value?.includes('admin') || userRole.value?.includes('super')) {
-    rentalStore.fetchVehicleOptions()
+    if (rentalStore.vehicleOptions.length === 0) { // vehicleOptions might be vehicle instances
+      rentalStore.fetchVehicleOptions()
+    }
   }
 })
 
@@ -126,6 +133,7 @@ function getStatusType(status: Entity.RentalStatus) {
 const showApproveModal = ref(false)
 const showRequestExtensionModal = ref(false)
 const showRejectExtensionModal = ref(false)
+const showRentalHistoryModal = ref(false) // 新增历史模态框状态
 const currentRentalForModal = ref<Entity.Rental | null>(null)
 
 // 打开批准模态框
@@ -159,6 +167,12 @@ function openRejectExtensionModal(rental: Entity.Rental) {
 // 处理拒绝延期操作
 function handleRejectExtensionAction(payload: { rentalId: number, originalDate: string }) {
   rentalStore.rejectRentalExtension(payload.rentalId, payload.originalDate)
+}
+
+// 新增：打开历史模态框
+function openRentalHistoryModal(rental: Entity.Rental) {
+  currentRentalForModal.value = rental
+  showRentalHistoryModal.value = true
 }
 
 // 定义数据表格的列
@@ -214,7 +228,7 @@ const columns: DataTableColumns<Entity.Rental> = [
     key: 'actions',
     align: 'center',
     fixed: 'right',
-    width: 280,
+    width: 280, // Adjusted width if needed
     render: (row) => {
       const userRoleVal = userInfo.value?.user?.role || []
       const isStoreAdmin = userRoleVal.includes('admin') && userInfo.value?.user?.managed_store_id
@@ -239,6 +253,7 @@ const columns: DataTableColumns<Entity.Rental> = [
 
       return (
         <NSpace justify="center">
+          <NButton size="small" type="default" onClick={() => openRentalHistoryModal(row)}>查看</NButton>
           {canApprove && (
             <NButton size="small" type="primary" loading={itemLoading.value[row.rental_id]} onClick={() => openApproveModal(row)}>批准</NButton>
           )}
@@ -309,6 +324,10 @@ const columns: DataTableColumns<Entity.Rental> = [
       v-model:show="showRejectExtensionModal"
       :rental="currentRentalForModal"
       @reject-extension="handleRejectExtensionAction"
+    />
+    <RentalHistoryModal
+      v-model:show="showRentalHistoryModal"
+      :rental="currentRentalForModal"
     />
   </NSpace>
 </template>

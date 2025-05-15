@@ -40,7 +40,6 @@ function handlePositiveClick() {
   }
   else {
     window.$message.error('新的归还日期必须晚于当前归还日期')
-    // return false; // NModal does not prevent close on its own for positive click
   }
 }
 
