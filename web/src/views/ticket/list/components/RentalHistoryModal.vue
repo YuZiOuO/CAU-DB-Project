@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { NCard, NDescriptions, NDescriptionsItem, NModal, NTag, NTimeline, NTimelineItem } from 'naive-ui'
+import { computed, watchEffect } from 'vue'
+import { NCard, NDescriptions, NDescriptionsItem, NModal, NTag, NTimeline, NTimelineItem, NText } from 'naive-ui'
+import type { TimelineItemProps } from 'naive-ui'
 
 interface Props {
   show: boolean
@@ -60,6 +61,24 @@ function getStatusType(status: Entity.RentalStatus | undefined) {
   }
 }
 
+// 新增函数：将 RentalStatus 转换为 TimelineItemProps['type']
+function getTimelineItemTypeFromRentalStatus(status: Entity.RentalStatus): TimelineItemProps['type'] {
+  switch (status) {
+    case 'pending':
+      return 'warning'
+    case 'active':
+      return 'success'
+    case 'returned':
+      return 'default' // 或者 'info' 如果想更突出
+    case 'cancelled':
+      return 'error'
+    case 'extension_requested':
+      return 'info' // 或者 'warning'
+    default:
+      return 'default'
+  }
+}
+
 // Timeline items would ideally come from a dedicated history log.
 // Here's a simplified version based on current rental data.
 const timelineItems = computed(() => {
@@ -69,7 +88,7 @@ const timelineItems = computed(() => {
 
   if (props.rental.rental_date) {
     items.push({
-      type: 'info' as const,
+      type: getTimelineItemTypeFromRentalStatus('pending'), // 初始状态通常是 pending
       title: '租借单创建',
       content: `用户 ${rentalDetails.value?.userName} 发起租借请求`,
       time: props.rental.rental_date,
@@ -78,13 +97,13 @@ const timelineItems = computed(() => {
 
   // This is a placeholder. Real status changes would need timestamps.
   // For example, if 'approved_at', 'cancelled_at' fields existed.
-  if (props.rental.rental_status === 'pending' && props.rental.rental_date) {
-    // Handled by creation if no other specific pending event
-  }
+  // if (props.rental.rental_status === 'pending' && props.rental.rental_date) {
+  //   // Handled by creation if no other specific pending event
+  // }
 
   if (props.rental.rental_status === 'active' && props.rental.rental_date) { // Assuming active starts on rental_date if approved
     items.push({
-      type: 'success' as const,
+      type: getTimelineItemTypeFromRentalStatus('active'),
       title: '租借开始 (已批准)',
       content: `车辆 ${rentalDetails.value?.vehicleInfo} 已分配`,
       time: props.rental.rental_date, // This might be an approval date in a real scenario
@@ -93,7 +112,7 @@ const timelineItems = computed(() => {
 
   if (props.rental.rental_status === 'extension_requested') {
     items.push({
-      type: 'warning' as const,
+      type: getTimelineItemTypeFromRentalStatus('extension_requested'),
       title: '请求延期',
       content: `用户请求将归还日期延至 ${props.rental.expected_return_date}`,
       // time: props.rental.extension_requested_at, // if such field existed
@@ -102,7 +121,7 @@ const timelineItems = computed(() => {
 
   if (props.rental.rental_status === 'returned') {
     items.push({
-      type: 'default' as const,
+      type: getTimelineItemTypeFromRentalStatus('returned'),
       title: '车辆已归还',
       content: `租借单完成`,
       // time: props.rental.actual_return_date, // if such field existed
@@ -111,7 +130,7 @@ const timelineItems = computed(() => {
 
   if (props.rental.rental_status === 'cancelled') {
     items.push({
-      type: 'error' as const,
+      type: getTimelineItemTypeFromRentalStatus('cancelled'),
       title: '租借单已取消',
       // time: props.rental.cancelled_at, // if such field existed
     })
@@ -126,7 +145,7 @@ const timelineItems = computed(() => {
       const isPast = expectedReturnDate.getTime() < new Date().setHours(0, 0, 0, 0) && props.rental.rental_status === 'active'
 
       items.push({
-        type: (props.rental.is_overdue && props.rental.rental_status === 'active') ? 'error' : 'info' as const,
+        type: (props.rental.is_overdue && props.rental.rental_status === 'active') ? 'error' : 'info' as const, // 'info' for general expected, 'error' if overdue
         title: props.rental.is_overdue && props.rental.rental_status === 'active' ? '已逾期 - 预计归还' : '预计归还日期',
         content: `计划于此日期归还车辆至 ${rentalDetails.value?.returnStore}`,
         time: props.rental.expected_return_date,
