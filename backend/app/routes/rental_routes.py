@@ -227,21 +227,21 @@ def approve_rental(rental_id):
 @rental_bp.route('/<int:rental_id>/return', methods=['PUT'])
 @jwt_required()
 def return_rental(rental_id):
-    """Mark a rental as returned (admin only)"""
+    """Mark a rental as returned (admin or rental owner)"""
     current_user_id = get_jwt_identity()
     current_user = User.query.get_or_404(current_user_id)
 
-    # Check if user is admin
-    if not current_user.is_admin:
-        return jsonify({
-            'code': 403,
-            'msg': 'Permission denied. Admin access required.'
-        }), 200
-
     rental = Rental.query.get_or_404(rental_id)
 
+    # Check if user is the rental owner or an admin
+    if not current_user.is_admin and rental.user_id != current_user_id:
+        return jsonify({
+            'code': 403,
+            'msg': 'Permission denied. You can only return your own rentals.'
+        }), 200
+
     # If store admin, check if rental is to their store
-    if current_user.managed_store_id is not None and rental.return_store_id != current_user.managed_store_id:
+    if current_user.is_admin and current_user.managed_store_id is not None and rental.return_store_id != current_user.managed_store_id:
         return jsonify({
             'code': 403,
             'msg': 'Permission denied. You can only process returns at your store.'
@@ -347,12 +347,12 @@ def approve_extension(rental_id):
 
     rental = Rental.query.get_or_404(rental_id)
 
-    # If store admin, check if rental is from/to their store
+    # If store admin, check if rental is from their store
     if current_user.managed_store_id is not None:
-        if rental.rental_store_id != current_user.managed_store_id and rental.return_store_id != current_user.managed_store_id:
+        if rental.rental_store_id != current_user.managed_store_id:
             return jsonify({
                 'code': 403,
-                'msg': 'Permission denied. You can only approve extensions for rentals from/to your store.'
+                'msg': 'Permission denied. You can only approve extensions for rentals from your store.'
             }), 200
 
     # Check if rental has an extension request
@@ -390,12 +390,12 @@ def reject_extension(rental_id):
 
     rental = Rental.query.get_or_404(rental_id)
 
-    # If store admin, check if rental is from/to their store
+    # If store admin, check if rental is from their store
     if current_user.managed_store_id is not None:
-        if rental.rental_store_id != current_user.managed_store_id and rental.return_store_id != current_user.managed_store_id:
+        if rental.rental_store_id != current_user.managed_store_id:
             return jsonify({
                 'code': 403,
-                'msg': 'Permission denied. You can only reject extensions for rentals from/to your store.'
+                'msg': 'Permission denied. You can only reject extensions for rentals from your store.'
             }), 200
 
     # Check if rental has an extension request
