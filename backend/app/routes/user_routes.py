@@ -15,18 +15,18 @@ def login():
             'code': 400,
             'msg': 'Missing email or password'
         }), 200
-    
+
     user = User.query.filter_by(email=data['email']).first()
     if not user or not user.check_password(data['password']):
         return jsonify({
             'code': 401,
             'msg': 'Invalid email or password'
         }), 200
-    
+
     # Create tokens
     access_token = create_access_token(identity=user.user_id)
     refresh_token = create_refresh_token(identity=user.user_id)
-    
+
     return jsonify({
         'code': 200,
         'msg': 'Login successful',
@@ -47,14 +47,14 @@ def register():
             'code': 400,
             'msg': f'Missing required fields: {", ".join(required_fields)}'
         }), 200
-    
+
     # Check if email already exists
     if User.query.filter_by(email=data['email']).first():
         return jsonify({
             'code': 409,
             'msg': 'Email already registered'
         }), 200
-    
+
     # Create new user
     user = User(
         name=data['name'],
@@ -65,14 +65,14 @@ def register():
         is_admin=False  # Default to regular user
     )
     user.set_password(data['password'])
-    
+
     db.session.add(user)
     db.session.commit()
-    
+
     # Create tokens
     access_token = create_access_token(identity=user.user_id)
     refresh_token = create_refresh_token(identity=user.user_id)
-    
+
     return jsonify({
         'code': 200,
         'msg': 'Registration successful',
@@ -90,7 +90,7 @@ def refresh():
     current_user_id = get_jwt_identity()
     access_token = create_access_token(identity=current_user_id)
     refresh_token = create_refresh_token(identity=current_user_id)
-    
+
     return jsonify({
         'code': 200,
         'msg': 'Token refreshed',
@@ -106,7 +106,7 @@ def get_profile():
     """Get current user profile"""
     current_user_id = get_jwt_identity()
     user = User.query.get_or_404(current_user_id)
-    
+
     return jsonify({
         'code': 200,
         'msg': 'Success',
@@ -120,7 +120,7 @@ def update_profile():
     current_user_id = get_jwt_identity()
     user = User.query.get_or_404(current_user_id)
     data = request.json
-    
+
     # Update user fields
     if 'name' in data:
         user.name = data['name']
@@ -130,9 +130,9 @@ def update_profile():
         user.phone_number = data['phone_number']
     if 'password' in data:
         user.set_password(data['password'])
-    
+
     db.session.commit()
-    
+
     return jsonify({
         'code': 200,
         'msg': 'Profile updated successfully',
@@ -145,15 +145,21 @@ def get_users():
     """Get all users (admin only)"""
     current_user_id = get_jwt_identity()
     current_user = User.query.get_or_404(current_user_id)
-    
-    # Check if user is global admin
-    if not current_user.is_admin or current_user.managed_store_id is not None:
+
+    # Check if user is admin
+    if not current_user.is_admin:
         return jsonify({
             'code': 403,
-            'msg': 'Permission denied. Global admin access required.'
+            'msg': 'Permission denied. Admin access required.'
         }), 200
-    
-    users = User.query.all()
+
+    # Global admin can see all users
+    if current_user.managed_store_id is None:
+        users = User.query.all()
+    # Store admin can see regular users (non-admin)
+    else:
+        users = User.query.filter_by(is_admin=False).all()
+
     return jsonify({
         'code': 200,
         'msg': 'Success',
@@ -166,15 +172,23 @@ def get_user(user_id):
     """Get a specific user (admin only)"""
     current_user_id = get_jwt_identity()
     current_user = User.query.get_or_404(current_user_id)
-    
+
     # Check if user is admin
     if not current_user.is_admin:
         return jsonify({
             'code': 403,
             'msg': 'Permission denied. Admin access required.'
         }), 200
-    
+
     user = User.query.get_or_404(user_id)
+
+    # Store admin can only view non-admin users
+    if current_user.managed_store_id is not None and user.is_admin:
+        return jsonify({
+            'code': 403,
+            'msg': 'Permission denied. You can only view regular users.'
+        }), 200
+
     return jsonify({
         'code': 200,
         'msg': 'Success',
@@ -187,20 +201,20 @@ def update_user_permissions(user_id):
     """Update user permissions (global admin only)"""
     current_user_id = get_jwt_identity()
     current_user = User.query.get_or_404(current_user_id)
-    
+
     # Check if user is global admin
     if not current_user.is_admin or current_user.managed_store_id is not None:
         return jsonify({
             'code': 403,
             'msg': 'Permission denied. Global admin access required.'
         }), 200
-    
+
     user = User.query.get_or_404(user_id)
     data = request.json
-    
+
     if 'is_admin' in data:
         user.is_admin = bool(data['is_admin'])
-    
+
     if 'managed_store_id' in data:
         if data['managed_store_id'] is not None:
             # Check if store exists
@@ -212,9 +226,9 @@ def update_user_permissions(user_id):
                     'msg': 'Store not found'
                 }), 200
         user.managed_store_id = data['managed_store_id']
-    
+
     db.session.commit()
-    
+
     return jsonify({
         'code': 200,
         'msg': 'User permissions updated successfully',

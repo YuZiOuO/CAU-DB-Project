@@ -29,17 +29,21 @@ class Vehicle(db.Model):
 
     vehicle_id = db.Column(db.Integer, primary_key=True)
     type_id = db.Column(db.Integer, db.ForeignKey('vehicle_types.type_id'), nullable=False)
+    store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=True)
     manufacture_date = db.Column(db.Date, nullable=False)
 
     # Relationships
     rentals = db.relationship('Rental', backref='vehicle', lazy=True)
+    store = db.relationship('Store', backref='vehicles', lazy=True)
 
     def to_dict(self):
         return {
             'vehicle_id': self.vehicle_id,
             'type_id': self.type_id,
+            'store_id': self.store_id,
             'manufacture_date': self.manufacture_date.strftime('%Y-%m-%d'),
-            'type': self.type.to_dict() if self.type else None
+            'type': self.type.to_dict() if self.type else None,
+            'store': self.store.to_dict() if self.store else None
         }
 
 class User(db.Model):
@@ -112,6 +116,43 @@ class Store(db.Model):
             'phone_number': self.phone_number
         }
 
+class VehicleTransfer(db.Model):
+    """Vehicle Transfer Model"""
+    __tablename__ = 'vehicle_transfers'
+
+    transfer_id = db.Column(db.Integer, primary_key=True)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicles.vehicle_id'), nullable=False)
+    source_store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
+    destination_store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
+    transfer_date = db.Column(db.Date, default=datetime.utcnow, nullable=False)
+    transfer_status = db.Column(db.String(20), nullable=False, default='pending')  # pending, approved, completed, cancelled
+    approved_by = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True)
+    completed_date = db.Column(db.Date, nullable=True)
+    notes = db.Column(db.String(255), nullable=True)
+
+    # Relationships
+    vehicle = db.relationship('Vehicle', backref='transfers', lazy=True)
+    source_store = db.relationship('Store', foreign_keys=[source_store_id], backref='outgoing_transfers', lazy=True)
+    destination_store = db.relationship('Store', foreign_keys=[destination_store_id], backref='incoming_transfers', lazy=True)
+    approver = db.relationship('User', backref='approved_transfers', lazy=True)
+
+    def to_dict(self):
+        return {
+            'transfer_id': self.transfer_id,
+            'vehicle_id': self.vehicle_id,
+            'source_store_id': self.source_store_id,
+            'destination_store_id': self.destination_store_id,
+            'transfer_date': self.transfer_date.strftime('%Y-%m-%d'),
+            'transfer_status': self.transfer_status,
+            'approved_by': self.approved_by,
+            'completed_date': self.completed_date.strftime('%Y-%m-%d') if self.completed_date else None,
+            'notes': self.notes,
+            'vehicle': self.vehicle.to_dict() if self.vehicle else None,
+            'source_store': self.source_store.to_dict() if self.source_store else None,
+            'destination_store': self.destination_store.to_dict() if self.destination_store else None,
+            'approver': self.approver.to_dict() if self.approver else None
+        }
+
 class Rental(db.Model):
     """Rental Model"""
     __tablename__ = 'rentals'
@@ -128,12 +169,16 @@ class Rental(db.Model):
     is_overdue = db.Column(db.Boolean, nullable=False, default=False)
 
     def to_dict(self):
+        # Handle special case for vehicle_id = -1
+        vehicle_id_display = "待处理" if self.vehicle_id == -1 else self.vehicle_id
+
         return {
             'rental_id': self.rental_id,
             'rental_date': self.rental_date.strftime('%Y-%m-%d'),
             'rental_store_id': self.rental_store_id,
             'user_id': self.user_id,
             'vehicle_id': self.vehicle_id,
+            'vehicle_id_display': vehicle_id_display,
             'vehicle_type_id': self.vehicle_type_id,
             'expected_return_date': self.expected_return_date.strftime('%Y-%m-%d'),
             'return_store_id': self.return_store_id,
