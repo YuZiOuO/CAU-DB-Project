@@ -128,12 +128,16 @@ class Rental(db.Model):
     is_overdue = db.Column(db.Boolean, nullable=False, default=False)
 
     def to_dict(self):
+        # Handle special case for vehicle_id = -1
+        vehicle_id_display = "待处理" if self.vehicle_id == -1 else self.vehicle_id
+
         return {
             'rental_id': self.rental_id,
             'rental_date': self.rental_date.strftime('%Y-%m-%d'),
             'rental_store_id': self.rental_store_id,
             'user_id': self.user_id,
             'vehicle_id': self.vehicle_id,
+            'vehicle_id_display': vehicle_id_display,
             'vehicle_type_id': self.vehicle_type_id,
             'expected_return_date': self.expected_return_date.strftime('%Y-%m-%d'),
             'return_store_id': self.return_store_id,
