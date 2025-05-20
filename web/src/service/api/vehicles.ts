@@ -3,6 +3,7 @@ import { request } from '../http'
 interface IVehicle {
   type_id: number
   manufacture_date: string // 格式 YYYY-MM-DD
+  store_id: number // 新增：车辆所属门店ID
 }
 
 export function fetchGetVehicles() {
@@ -16,7 +17,7 @@ export function fetchCreateVehicle(data: IVehicle) {
   return methodInstance
 }
 
-export function fetchUpdateVehicle(id: number, data: IVehicle) {
+export function fetchUpdateVehicle(id: number, data: Partial<IVehicle>) { // Partial<IVehicle> 允许部分更新
   const methodInstance = request.Put<Service.ResponseResult<Entity.Vehicle>>(`/vehicles/${id}`, data)
   return methodInstance
 }

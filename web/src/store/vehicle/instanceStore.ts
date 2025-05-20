@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { fetchCreateVehicle, fetchDeleteVehicle, fetchGetVehicles, fetchUpdateVehicle } from '@/service/api/vehicles'
 import { fetchGetVehicleTypes } from '@/service/api/vehicle_type'
 import type { SelectOption } from 'naive-ui'
+import { useStoreModule } from '../storeModule' // 引入门店模块
 
 interface VehicleInstanceState {
   items: Entity.Vehicle[]
@@ -14,6 +15,8 @@ interface VehicleInstanceState {
   }
   vehicleTypeOptions: SelectOption[]
   isLoadingTypes: boolean
+  storeOptions: SelectOption[] // 新增：门店选项
+  isLoadingStores: boolean // 新增：加载门店状态
 }
 
 const initialFilterModel = {
@@ -30,6 +33,8 @@ export const useVehicleInstanceStore = defineStore('vehicle-instance', {
     filterModel: { ...initialFilterModel },
     vehicleTypeOptions: [],
     isLoadingTypes: false,
+    storeOptions: [], // 初始化门店选项
+    isLoadingStores: false, // 初始化加载门店状态
   }),
   actions: {
     async fetchVehicles() {
@@ -76,6 +81,26 @@ export const useVehicleInstanceStore = defineStore('vehicle-instance', {
         this.isLoadingTypes = false
       }
     },
+    async loadStoreOptions() { // 新增：加载门店选项的方法
+      this.isLoadingStores = true
+      const storeModule = useStoreModule()
+      try {
+        if (storeModule.items.length === 0) {
+          await storeModule.fetchStores()
+        }
+        this.storeOptions = storeModule.items.map(store => ({
+          label: store.store_name,
+          value: store.store_id,
+        }))
+      }
+      catch (error) {
+        console.error('获取门店选项失败:', error)
+        this.storeOptions = []
+      }
+      finally {
+        this.isLoadingStores = false
+      }
+    },
     applyFilters() {
       this.searchLoading = true
       this.loading = true
@@ -97,7 +122,7 @@ export const useVehicleInstanceStore = defineStore('vehicle-instance', {
       this.filterModel = { ...initialFilterModel }
       this.displayedItems = [...this.items]
     },
-    async createVehicle(itemData: { type_id: number, manufacture_date: string }) {
+    async createVehicle(itemData: { type_id: number, manufacture_date: string, store_id: number }) {
       this.loading = true
       try {
         const res: any = await fetchCreateVehicle(itemData)
@@ -114,7 +139,7 @@ export const useVehicleInstanceStore = defineStore('vehicle-instance', {
         this.loading = false
       }
     },
-    async updateVehicle(vehicleId: number, itemData: { type_id: number, manufacture_date: string }) {
+    async updateVehicle(vehicleId: number, itemData: { type_id?: number, manufacture_date?: string, store_id?: number }) {
       this.loading = true
       try {
         const res: any = await fetchUpdateVehicle(vehicleId, itemData)
