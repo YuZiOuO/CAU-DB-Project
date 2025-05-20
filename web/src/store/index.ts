@@ -10,6 +10,7 @@ export * from './vehicle/instanceStore'
 export * from './storeModule'
 export * from './rentalStore'
 export * from './userManagementStore'
+export * from './vehicle/transferStore' // 新增导出
 
 // 安装pinia全局状态库
 export function installPinia(app: App) {

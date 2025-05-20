@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import type { DataTableColumns, FormInst } from 'naive-ui'
 import { NButton, NPopconfirm, NSpace } from 'naive-ui'
 import TableModal from './components/TableModal.vue'
+import TransferModal from './components/TransferModal.vue' // 新增导入
 import { useVehicleInstanceStore } from '@/store'
 import { storeToRefs } from 'pinia'
 import { useBoolean, usePermission } from '@/hooks'
@@ -14,6 +15,7 @@ const {
   loading,
   searchLoading,
   filterModel,
+  storeOptions, // 确保 storeOptions 已从 store 中解构出来
 } = storeToRefs(vehicleInstanceStore)
 
 const { hasPermission } = usePermission()
@@ -22,6 +24,9 @@ const router = useRouter()
 const { bool: isModalVisible, setTrue: openModal, setFalse: closeModal } = useBoolean(false)
 const modalType = ref<'add' | 'edit'>('add')
 const editingItem = ref<Entity.Vehicle | null>(null)
+
+const { bool: isTransferModalVisible, setTrue: openTransferModal, setFalse: closeTransferModal } = useBoolean(false) // 新增流转模态框状态
+const transferItem = ref<Entity.Vehicle | null>(null) // 新增流转车辆数据
 
 const formRef = ref<FormInst | null>(null)
 
@@ -34,7 +39,6 @@ onMounted(() => {
   if (vehicleInstanceStore.vehicleTypeOptions.length === 0) {
     vehicleInstanceStore.loadVehicleTypes()
   }
-  // 新增：确保门店选项已加载，供模态框使用
   if (vehicleInstanceStore.storeOptions.length === 0) {
     vehicleInstanceStore.loadStoreOptions()
   }
@@ -54,6 +58,11 @@ function handleEditTable(row: Entity.Vehicle) {
   modalType.value = 'edit'
   editingItem.value = { ...row }
   openModal()
+}
+
+function handleTransferTable(row: Entity.Vehicle) { // 新增处理流转函数
+  transferItem.value = { ...row }
+  openTransferModal()
 }
 
 const columns: DataTableColumns<Entity.Vehicle> = [
@@ -104,6 +113,14 @@ const columns: DataTableColumns<Entity.Vehicle> = [
             disabled={!hasPermission(['admin', 'super'])}
           >
             编辑
+          </NButton>
+          <NButton // 新增流转按钮
+            size="small"
+            type="info"
+            onClick={() => handleTransferTable(row)}
+            disabled={!hasPermission(['admin', 'super'])}
+          >
+            流转
           </NButton>
           <NPopconfirm onPositiveClick={() => handleDelete(row.vehicle_id)} disabled={!hasPermission(['admin', 'super'])}>
             {{
@@ -178,6 +195,12 @@ function changePage(page: number, size: number) {
         <!-- Replace Pagination with actual component if you have one, or Naive UI's pagination -->
         <Pagination :count="displayedItems.length" @change="changePage" /> <!-- Adjust count prop -->
         <TableModal v-model:visible="isModalVisible" :type="modalType" :modal-data="editingItem" @success="() => { vehicleInstanceStore.fetchVehicles(); closeModal(); }" />
+        <TransferModal
+          v-model:visible="isTransferModalVisible"
+          :vehicle-data="transferItem"
+          :store-options="storeOptions"
+          @success="() => { closeTransferModal(); }"
+        />
       </NSpace>
     </n-card>
   </NSpace>
