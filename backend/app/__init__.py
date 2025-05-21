@@ -39,7 +39,7 @@ def create_app(config_name='development'):
     app.register_blueprint(user_bp, url_prefix='/api/users')
     app.register_blueprint(store_bp, url_prefix='/api/stores')
     app.register_blueprint(rental_bp, url_prefix='/api/rentals')
-    app.register_blueprint(vehicle_transfer_bp, url_prefix='/api/vehicle-transfers')
+    app.register_blueprint(vehicle_transfer_bp, url_prefix='/api/transfers')
 
     # Create a route for testing the API
     @app.route('/api/health')

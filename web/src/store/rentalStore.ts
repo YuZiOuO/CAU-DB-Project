@@ -27,7 +27,7 @@ interface RentalState {
   loading: boolean
   itemLoading: Record<number, boolean> // Loading state for individual rental items
   storeOptions: SelectOption[]
-  vehicleOptions: Array<{ label: string; value: number; type_id: number }>
+  vehicleOptions: Array<{ label: string, value: number, type_id: number, store_id: number | undefined }> // Updated to include store_id
   vehicleLoading: boolean
 }
 
@@ -65,13 +65,20 @@ export const useRentalStore = defineStore('rental-store', {
     async fetchVehicleOptions() {
       this.vehicleLoading = true
       const vehicleInstanceStore = useVehicleInstanceStore()
+      // Ensure vehicle instances are fetched, which now include store details
       if (vehicleInstanceStore.items.length === 0 && !vehicleInstanceStore.loading) {
         await vehicleInstanceStore.fetchVehicles()
       }
+      // Ensure vehicle types are fetched for label generation
+      const vehicleTypeStore = useVehicleTypeStore()
+      if (vehicleTypeStore.items.length === 0 && !vehicleTypeStore.loading) {
+        await vehicleTypeStore.fetchVehicleTypes()
+      }
+
       this.vehicleOptions = vehicleInstanceStore.items
-        .filter(v => v.type_id)
+        .filter(v => v.type_id && v.store_id) // Ensure vehicle has type and store
         .map((vehicle) => {
-          const vehicleType = this.getVehicleTypeById(vehicle.type_id)
+          const vehicleType = this.getVehicleTypeById(vehicle.type_id) // getVehicleTypeById is from getters
           const label = vehicleType
             ? `${vehicleType.brand} ${vehicleType.model} (ID: ${vehicle.vehicle_id})`
             : `车辆ID: ${vehicle.vehicle_id} (类型 ${vehicle.type_id})`
@@ -79,6 +86,7 @@ export const useRentalStore = defineStore('rental-store', {
             label,
             value: vehicle.vehicle_id,
             type_id: vehicle.type_id,
+            store_id: vehicle.store_id, // Include store_id
           }
         })
       this.vehicleLoading = false
@@ -144,11 +152,14 @@ export const useRentalStore = defineStore('rental-store', {
 
     async approveRental(rentalId: number, vehicleId: number) {
       this.itemLoading[rentalId] = true
+      const vehicleInstanceStore = useVehicleInstanceStore()
       try {
         const res: any = await fetchApproveRental(rentalId, vehicleId)
         if (res.isSuccess) {
           window.$message.success('租借单已批准')
           await this.fetchRentalsList()
+          await vehicleInstanceStore.fetchVehicles()
+          await this.fetchVehicleOptions() // 重新获取车辆选项
         }
       }
       catch (error) {
@@ -161,11 +172,14 @@ export const useRentalStore = defineStore('rental-store', {
 
     async returnRental(rentalId: number) {
       this.itemLoading[rentalId] = true
+      const vehicleInstanceStore = useVehicleInstanceStore()
       try {
         const res: any = await fetchReturnRental(rentalId)
         if (res.isSuccess) {
           window.$message.success('车辆已标记为归还')
           await this.fetchRentalsList()
+          await vehicleInstanceStore.fetchVehicles()
+          await this.fetchVehicleOptions() // 重新获取车辆选项
         }
       }
       catch (error) {
@@ -229,11 +243,17 @@ export const useRentalStore = defineStore('rental-store', {
 
     async cancelRental(rentalId: number) {
       this.itemLoading[rentalId] = true
+      const vehicleInstanceStore = useVehicleInstanceStore()
       try {
         const res: any = await fetchCancelRental(rentalId)
         if (res.isSuccess) {
           window.$message.success('租借单已取消')
           await this.fetchRentalsList()
+          const cancelledRental = this.items.find(r => r.rental_id === rentalId)
+          if (cancelledRental && cancelledRental.vehicle_id && cancelledRental.vehicle_id !== -1) {
+            await vehicleInstanceStore.fetchVehicles()
+            await this.fetchVehicleOptions() // 重新获取车辆选项
+          }
         }
       }
       catch (error) {

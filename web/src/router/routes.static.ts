@@ -51,6 +51,16 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     pid: 3,
   },
   {
+    name: 'vehicleTransfer',
+    path: '/vehicle/transfer',
+    title: '流转管理',
+    requiresAuth: true,
+    icon: 'icon-park-outline:map-distance',
+    componentPath: '/vehicle/transfer/index.vue',
+    id: 32,
+    pid: 3,
+  },
+  {
     name: 'tickets',
     path: '/ticket',
     title: '租借单',

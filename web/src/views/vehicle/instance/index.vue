@@ -3,10 +3,11 @@ import { onMounted, ref } from 'vue'
 import type { DataTableColumns, FormInst } from 'naive-ui'
 import { NButton, NPopconfirm, NSpace } from 'naive-ui'
 import TableModal from './components/TableModal.vue'
+import TransferModal from './components/TransferModal.vue' // 新增导入
 import { useVehicleInstanceStore } from '@/store'
 import { storeToRefs } from 'pinia'
-import { useBoolean, usePermission } from '@/hooks' // 引入 useBoolean 和 usePermission
-import { useRouter } from 'vue-router' // 引入 useRouter
+import { useBoolean, usePermission } from '@/hooks'
+import { useRouter } from 'vue-router'
 
 const vehicleInstanceStore = useVehicleInstanceStore()
 const {
@@ -14,27 +15,32 @@ const {
   loading,
   searchLoading,
   filterModel,
+  storeOptions, // 确保 storeOptions 已从 store 中解构出来
 } = storeToRefs(vehicleInstanceStore)
 
-const { hasPermission } = usePermission() // 初始化 usePermission
-const router = useRouter() // 获取 router 实例
+const { hasPermission } = usePermission()
+const router = useRouter()
 
 const { bool: isModalVisible, setTrue: openModal, setFalse: closeModal } = useBoolean(false)
 const modalType = ref<'add' | 'edit'>('add')
 const editingItem = ref<Entity.Vehicle | null>(null)
 
+const { bool: isTransferModalVisible, setTrue: openTransferModal, setFalse: closeTransferModal } = useBoolean(false) // 新增流转模态框状态
+const transferItem = ref<Entity.Vehicle | null>(null) // 新增流转车辆数据
+
 const formRef = ref<FormInst | null>(null)
 
 onMounted(() => {
-  // 检查用户是否不具有 'admin' 或 'super' 权限
   if (!hasPermission(['admin', 'super'])) {
-    router.push('/403') // 重定向到 403 页面
-    return // 阻止进一步执行
+    router.push('/403')
+    return
   }
   vehicleInstanceStore.fetchVehicles()
-  // Optionally load types if not already loaded by modal logic
   if (vehicleInstanceStore.vehicleTypeOptions.length === 0) {
     vehicleInstanceStore.loadVehicleTypes()
+  }
+  if (vehicleInstanceStore.storeOptions.length === 0) {
+    vehicleInstanceStore.loadStoreOptions()
   }
 })
 
@@ -54,6 +60,11 @@ function handleEditTable(row: Entity.Vehicle) {
   openModal()
 }
 
+function handleTransferTable(row: Entity.Vehicle) { // 新增处理流转函数
+  transferItem.value = { ...row }
+  openTransferModal()
+}
+
 const columns: DataTableColumns<Entity.Vehicle> = [
   {
     title: 'ID',
@@ -63,27 +74,32 @@ const columns: DataTableColumns<Entity.Vehicle> = [
   {
     title: '品牌',
     align: 'center',
-    key: 'type.brand', // 从嵌套的 type 对象获取
+    key: 'type.brand',
     render: row => row.type?.brand || 'N/A',
   },
   {
     title: '型号',
     align: 'center',
-    key: 'type.model', // 从嵌套的 type 对象获取
+    key: 'type.model',
     render: row => row.type?.model || 'N/A',
   },
   {
-    title: '生产日期', // 之前是 '年份'
+    title: '生产日期',
     align: 'center',
     key: 'manufacture_date',
   },
   {
     title: '日租金',
     align: 'center',
-    key: 'type.daily_rent_price', // 从嵌套的 type 对象获取
+    key: 'type.daily_rent_price',
     render: row => (row.type?.daily_rent_price ? `￥${row.type.daily_rent_price.toFixed(2)}` : 'N/A'),
   },
-  // 移除了车牌号、状态、店铺ID的列
+  { // 新增：车辆所属门店列
+    title: '所属门店',
+    align: 'center',
+    key: 'store.store_name',
+    render: row => row.store?.store_name || 'N/A',
+  },
   {
     title: '操作',
     align: 'center',
@@ -97,6 +113,14 @@ const columns: DataTableColumns<Entity.Vehicle> = [
             disabled={!hasPermission(['admin', 'super'])}
           >
             编辑
+          </NButton>
+          <NButton // 新增流转按钮
+            size="small"
+            type="info"
+            onClick={() => handleTransferTable(row)}
+            disabled={!hasPermission(['admin', 'super'])}
+          >
+            流转
           </NButton>
           <NPopconfirm onPositiveClick={() => handleDelete(row.vehicle_id)} disabled={!hasPermission(['admin', 'super'])}>
             {{
@@ -126,7 +150,7 @@ function changePage(page: number, size: number) {
           <n-form-item label="型号" path="model">
             <n-input v-model:value="filterModel.model" placeholder="请输入车辆型号" />
           </n-form-item>
-          <!-- 移除了车牌号和状态的筛选输入框 -->
+          <!-- 可以考虑添加按门店筛选的功能 -->
           <n-flex class="ml-auto">
             <NButton type="primary" :loading="searchLoading" @click="vehicleInstanceStore.applyFilters">
               <template #icon>
@@ -171,6 +195,12 @@ function changePage(page: number, size: number) {
         <!-- Replace Pagination with actual component if you have one, or Naive UI's pagination -->
         <Pagination :count="displayedItems.length" @change="changePage" /> <!-- Adjust count prop -->
         <TableModal v-model:visible="isModalVisible" :type="modalType" :modal-data="editingItem" @success="() => { vehicleInstanceStore.fetchVehicles(); closeModal(); }" />
+        <TransferModal
+          v-model:visible="isTransferModalVisible"
+          :vehicle-data="transferItem"
+          :store-options="storeOptions"
+          @success="() => { closeTransferModal(); }"
+        />
       </NSpace>
     </n-card>
   </NSpace>
