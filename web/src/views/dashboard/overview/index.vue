@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import StatCard from './components/StatCard.vue'
 import RentalTrendChart from './components/RentalTrendChart.vue'
 import VehicleStatusPieChart from './components/VehicleStatusPieChart.vue'
 import RecentRentalsList from './components/RecentRentalsList.vue'
 
-import { useVehicleInstanceStore, useRentalStore, useAuthStore, useStoreModule } from '@/store'
+import { useAuthStore, useRentalStore, useStoreModule, useVehicleInstanceStore } from '@/store'
 import { storeToRefs } from 'pinia'
 
 const vehicleInstanceStore = useVehicleInstanceStore()
@@ -41,10 +41,8 @@ onMounted(async () => {
   if (storeModule.items.length === 0) {
     promises.push(storeModule.fetchStores())
   }
-  // Example: if you had a way to get total user count
-  // promises.push(fetchTotalUserCount().then(count => totalUsers.value = count));
-  // For now, using a mock value if not fetched:
-  if (totalUsers.value === 0) totalUsers.value = 500 // Mock
+  if (totalUsers.value === 0)
+    totalUsers.value = 500 // Mock
 
   await Promise.all(promises)
 })
@@ -84,6 +82,5 @@ onMounted(async () => {
     </n-grid>
 
     <RecentRentalsList />
-
   </n-space>
 </template>

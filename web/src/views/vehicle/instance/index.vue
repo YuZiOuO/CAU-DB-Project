@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import type { DataTableColumns, FormInst } from 'naive-ui'
 import { NButton, NPopconfirm, NSpace } from 'naive-ui'
 import TableModal from './components/TableModal.vue'
-import TransferModal from './components/TransferModal.vue' // 新增导入
+import TransferModal from './components/TransferModal.vue'
 import { useVehicleInstanceStore } from '@/store'
 import { storeToRefs } from 'pinia'
 import { useBoolean, usePermission } from '@/hooks'
@@ -15,7 +15,7 @@ const {
   loading,
   searchLoading,
   filterModel,
-  storeOptions, // 确保 storeOptions 已从 store 中解构出来
+  storeOptions,
 } = storeToRefs(vehicleInstanceStore)
 
 const { hasPermission } = usePermission()

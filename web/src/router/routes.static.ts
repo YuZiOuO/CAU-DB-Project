@@ -4,8 +4,8 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     path: '/dashboard',
     title: '工作台',
     requiresAuth: true,
+    roles: ['super', 'admin'],
     icon: 'icon-park-outline:analysis',
-    menuType: 'dir',
     componentPath: '/dashboard/overview/index.vue',
     id: 1,
     pid: null,
@@ -35,6 +35,7 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     path: '/vehicle/instance',
     title: '车辆实例管理',
     requiresAuth: true,
+    roles: ['super', 'admin'],
     icon: 'icon-park-outline:local-pin',
     componentPath: '/vehicle/instance/index.vue',
     id: 30,
@@ -55,6 +56,7 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     path: '/vehicle/transfer',
     title: '流转管理',
     requiresAuth: true,
+    roles: ['super', 'admin'],
     icon: 'icon-park-outline:map-distance',
     componentPath: '/vehicle/transfer/index.vue',
     id: 32,
@@ -121,4 +123,4 @@ export const staticRoutes: AppRoute.RowRoute[] = [
     id: 39,
     pid: null,
   },
-];
+]
