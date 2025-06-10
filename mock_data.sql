@@ -45,3 +45,14 @@ INSERT INTO vehicle_transfers (transfer_id, vehicle_id, source_store_id, destina
 (1, 3, 1, 2, '2024-04-10', 'completed', 1, '2024-04-12', '将思域调至机场以满足更高需求。'), -- 由管理员批准
 (2, 5, 2, 3, '2024-05-01', 'approved', 1, NULL, '将探险者移至近郊门店。'), -- 由管理员批准
 (3, 8, 3, 1, '2024-05-06', 'pending', NULL, NULL, '为市中心门店申请调动思域。');
+
+-- 更新主键序列以避免与自动增量冲突
+-- 确保序列的下一个值大于当前表中的最大ID
+-- 注意：pg_get_serial_sequence 的第二个参数是列名，不是序列名本身
+-- COALESCE 用于处理表为空的情况，确保 setval 至少从 1 开始（如果表为空，MAX(id)会是NULL）
+-- setval 的第三个参数 'false' 表示下一个 nextval 将返回 max_id + 1
+SELECT setval(pg_get_serial_sequence('stores', 'store_id'), COALESCE((SELECT MAX(store_id) FROM stores), 0) + 1, false);
+SELECT setval(pg_get_serial_sequence('vehicle_types', 'type_id'), COALESCE((SELECT MAX(type_id) FROM vehicle_types), 0) + 1, false);
+SELECT setval(pg_get_serial_sequence('vehicles', 'vehicle_id'), COALESCE((SELECT MAX(vehicle_id) FROM vehicles), 0) + 1, false);
+SELECT setval(pg_get_serial_sequence('rentals', 'rental_id'), COALESCE((SELECT MAX(rental_id) FROM rentals), 0) + 1, false);
+SELECT setval(pg_get_serial_sequence('vehicle_transfers', 'transfer_id'), COALESCE((SELECT MAX(transfer_id) FROM vehicle_transfers), 0) + 1, false);
