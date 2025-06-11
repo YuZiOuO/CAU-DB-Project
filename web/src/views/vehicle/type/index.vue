@@ -5,7 +5,7 @@ import { NButton, NPopconfirm, NSpace } from 'naive-ui'
 import TableModal from './components/TableModal.vue'
 import { useVehicleTypeStore } from '@/store'
 import { storeToRefs } from 'pinia'
-import { useBoolean } from '@/hooks' // 引入 useBoolean
+import { useBoolean, usePermission } from '@/hooks' // 引入 usePermission
 
 const vehicleTypeStore = useVehicleTypeStore()
 const {
@@ -20,6 +20,7 @@ const modalType = ref<'add' | 'edit'>('add')
 const editingItem = ref<Entity.VehicleType | null>(null)
 
 const formRef = ref<FormInst | null>(null)
+const { hasPermission } = usePermission() // 初始化 usePermission
 
 onMounted(() => {
   vehicleTypeStore.fetchVehicleTypes()
@@ -68,22 +69,25 @@ const columns: DataTableColumns<Entity.VehicleType> = [
     align: 'center',
     key: 'actions',
     render: (row) => {
-      return (
-        <NSpace justify="center">
-          <NButton
-            size="small"
-            onClick={() => handleEditTable(row)}
-          >
-            编辑
-          </NButton>
-          <NPopconfirm onPositiveClick={() => handleDelete(row.type_id)}>
-            {{
-              default: () => '确认删除',
-              trigger: () => <NButton size="small" type="error">删除</NButton>,
-            }}
-          </NPopconfirm>
-        </NSpace>
-      )
+      if (hasPermission(['admin', 'super'])) {
+        return (
+          <NSpace justify="center">
+            <NButton
+              size="small"
+              onClick={() => handleEditTable(row)}
+            >
+              编辑
+            </NButton>
+            <NPopconfirm onPositiveClick={() => handleDelete(row.type_id)}>
+              {{
+                default: () => '确认删除',
+                trigger: () => <NButton size="small" type="error">删除</NButton>,
+              }}
+            </NPopconfirm>
+          </NSpace>
+        )
+      }
+      return null // 如果没有 'admin' 或 'super' 权限，则不渲染任何内容
     },
   },
 ]
@@ -120,7 +124,7 @@ const columns: DataTableColumns<Entity.VehicleType> = [
     <n-card>
       <NSpace vertical size="large">
         <div class="flex gap-4">
-          <NButton type="primary" @click="handleAddTable">
+          <NButton type="primary" :disabled="!hasPermission(['admin', 'super'])" @click="handleAddTable">
             <template #icon>
               <icon-park-outline-add-one />
             </template>

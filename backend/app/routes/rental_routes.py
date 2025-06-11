@@ -127,8 +127,8 @@ def create_rental():
         rental_date=datetime.utcnow().date(),
         rental_store_id=data["rental_store_id"],
         user_id=current_user_id,
-        vehicle_id=-1,  # Use special pending vehicle ID (-1)
-        vehicle_type_id=data["vehicle_type_id"],  # User's preferred vehicle type
+        vehicle_id=None,  # Will be assigned by admin
+        vehicle_type_id=data['vehicle_type_id'],  # User's preferred vehicle type
         expected_return_date=expected_return_date,
         return_store_id=data["return_store_id"],
         rental_status="pending",

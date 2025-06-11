@@ -31,8 +31,9 @@ def init_db():
 def create_admin():
     """Create an admin user."""
     from .app.models.models import User
+    
+    admin = User.query.filter_by(email='admin@example.com').first()
 
-    admin = User.query.filter_by(email="admin@example.com").first()
     if admin:
         print("Admin user already exists.")
         return
@@ -51,50 +52,6 @@ def create_admin():
     db.session.commit()
     print("Admin user created successfully.")
 
-
-@app.cli.command("create-pending-vehicle")
-def create_pending_vehicle():
-    """Create a special pending vehicle with ID -1."""
-    from .app.models.models import Vehicle, VehicleType
-    from datetime import datetime
-
-    # Check if pending vehicle already exists
-    pending_vehicle = Vehicle.query.filter_by(vehicle_id=-1).first()
-    if pending_vehicle:
-        print("Pending vehicle already exists.")
-        return
-
-    # Check if we have at least one vehicle type
-    vehicle_type = VehicleType.query.first()
-    if not vehicle_type:
-        print("No vehicle types found. Please create at least one vehicle type first.")
-        return
-
-    # Create pending vehicle with ID -1
-    pending_vehicle = Vehicle(
-        vehicle_id=-1,
-        type_id=vehicle_type.type_id,
-        manufacture_date=datetime.utcnow().date(),
-    )
-
-    db.session.add(pending_vehicle)
-    db.session.commit()
-    print("Pending vehicle created successfully with ID -1.")
-
-
-@app.cli.command("check-overdue-rentals")
-def check_overdue_rentals_cmd():
-    """Check for overdue rentals and update their status."""
-    from backend.app.utils.rental_utils import check_overdue_rentals
-
-    with app.app_context():
-        overdue_count, non_overdue_count = check_overdue_rentals()
-        print(f"Found {overdue_count} new overdue rentals.")
-        print(f"Updated {non_overdue_count} rentals that are no longer overdue.")
-
-    return overdue_count, non_overdue_count
-
-
 def main():
     """Run the application or perform database operations based on command-line arguments."""
     import sys
@@ -107,15 +64,8 @@ def main():
         elif sys.argv[1] == "create-admin":
             with app.app_context():
                 create_admin()
-        elif sys.argv[1] == "create-pending-vehicle":
-            with app.app_context():
-                create_pending_vehicle()
-        elif sys.argv[1] == "check-overdue-rentals":
-            with app.app_context():
-                check_overdue_rentals_cmd()
     else:
         app.run(host="127.0.0.1", port=11451, debug=True)
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

@@ -1,10 +1,10 @@
 <script setup lang="tsx">
 import { onMounted, ref } from 'vue'
 import type { DataTableColumns, FormInst } from 'naive-ui'
-import { NButton, NPopconfirm, NSpace } from 'naive-ui'
+import { NButton, NPopconfirm, NSpace, NTag } from 'naive-ui'
 import TableModal from './components/TableModal.vue'
-import TransferModal from './components/TransferModal.vue' // 新增导入
-import { useVehicleInstanceStore } from '@/store'
+import TransferModal from './components/TransferModal.vue'
+import { useAuthStore, useRentalStore, useVehicleInstanceStore, useVehicleTransferStore } from '@/store' // 引入 useRentalStore, useVehicleTransferStore
 import { storeToRefs } from 'pinia'
 import { useBoolean, usePermission } from '@/hooks'
 import { useRouter } from 'vue-router'
@@ -15,8 +15,17 @@ const {
   loading,
   searchLoading,
   filterModel,
-  storeOptions, // 确保 storeOptions 已从 store 中解构出来
+  storeOptions,
 } = storeToRefs(vehicleInstanceStore)
+
+const authStore = useAuthStore()
+const { userInfo } = storeToRefs(authStore)
+
+const rentalStore = useRentalStore()
+const { items: rentalItems } = storeToRefs(rentalStore)
+
+const vehicleTransferStore = useVehicleTransferStore()
+const { items: transferItems } = storeToRefs(vehicleTransferStore)
 
 const { hasPermission } = usePermission()
 const router = useRouter()
@@ -42,6 +51,12 @@ onMounted(() => {
   if (vehicleInstanceStore.storeOptions.length === 0) {
     vehicleInstanceStore.loadStoreOptions()
   }
+  if (rentalStore.items.length === 0) {
+    rentalStore.fetchRentalsList()
+  }
+  if (vehicleTransferStore.items.length === 0) {
+    vehicleTransferStore.fetchVehicleTransfers()
+  }
 })
 
 async function handleDelete(id: number) {
@@ -60,9 +75,31 @@ function handleEditTable(row: Entity.Vehicle) {
   openModal()
 }
 
-function handleTransferTable(row: Entity.Vehicle) { // 新增处理流转函数
+function handleTransferTable(row: Entity.Vehicle) {
   transferItem.value = { ...row }
   openTransferModal()
+}
+
+// Helper function to determine vehicle status
+function getVehicleDisplayStatus(vehicle: Entity.Vehicle): { text: string, tagType: 'success' | 'error' | 'warning' | 'info' | 'default' } {
+  // 检查是否出租中
+  const activeRental = rentalItems.value.find(
+    r => r.vehicle_id === vehicle.vehicle_id && (r.rental_status === 'active' || r.rental_status === 'extension_requested'),
+  )
+  if (activeRental) {
+    return { text: '出租中', tagType: 'error' }
+  }
+
+  // 检查是否流转中
+  const activeTransfer = transferItems.value.find(
+    t => t.vehicle_id === vehicle.vehicle_id && (t.transfer_status === 'pending' || t.transfer_status === 'approved'),
+  )
+  if (activeTransfer) {
+    return { text: '流转中', tagType: 'info' }
+  }
+
+  // 默认为在库
+  return { text: '在库', tagType: 'success' }
 }
 
 const columns: DataTableColumns<Entity.Vehicle> = [
@@ -100,32 +137,55 @@ const columns: DataTableColumns<Entity.Vehicle> = [
     key: 'store.store_name',
     render: row => row.store?.store_name || 'N/A',
   },
+  { // 新增：车辆状态列
+    title: '状态',
+    align: 'center',
+    key: 'calculated_status',
+    render: (row) => {
+      const status = getVehicleDisplayStatus(row)
+      return <NTag type={status.tagType}>{status.text}</NTag>
+    },
+  },
   {
     title: '操作',
     align: 'center',
     key: 'actions',
     render: (row) => {
+      const canPerformAdminSuperActions = hasPermission(['admin', 'super'])
+
+      let shouldShowTransferButton = false
+      if (hasPermission(['super'])) {
+        shouldShowTransferButton = true
+      }
+      else if (hasPermission(['admin'])) {
+        if (userInfo.value?.user?.managed_store_id && row.store_id && userInfo.value.user.managed_store_id === row.store_id) {
+          shouldShowTransferButton = true
+        }
+      }
+
       return (
         <NSpace justify="center">
           <NButton
             size="small"
             onClick={() => handleEditTable(row)}
-            disabled={!hasPermission(['admin', 'super'])}
+            disabled={!canPerformAdminSuperActions}
           >
             编辑
           </NButton>
-          <NButton // 新增流转按钮
-            size="small"
-            type="info"
-            onClick={() => handleTransferTable(row)}
-            disabled={!hasPermission(['admin', 'super'])}
-          >
-            流转
-          </NButton>
-          <NPopconfirm onPositiveClick={() => handleDelete(row.vehicle_id)} disabled={!hasPermission(['admin', 'super'])}>
+          {shouldShowTransferButton && (
+            <NButton // 流转按钮，根据条件显示
+              size="small"
+              type="info"
+              onClick={() => handleTransferTable(row)}
+              // 当按钮显示时，用户应有权操作，无需额外 disabled 判断权限
+            >
+              流转
+            </NButton>
+          )}
+          <NPopconfirm onPositiveClick={() => handleDelete(row.vehicle_id)} disabled={!canPerformAdminSuperActions}>
             {{
               default: () => '确认删除',
-              trigger: () => <NButton size="small" type="error" disabled={!hasPermission(['admin', 'super'])}>删除</NButton>,
+              trigger: () => <NButton size="small" type="error" disabled={!canPerformAdminSuperActions}>删除</NButton>,
             }}
           </NPopconfirm>
         </NSpace>

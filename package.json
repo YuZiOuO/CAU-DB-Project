@@ -7,6 +7,10 @@
 		"pre-commit": "cd web && pnpm lint-staged"
 	},
 	"scripts": {
-    "dev": "concurrently \"pnpm --filter ./web dev\" \"flask --app backend.run run\""
+    "dev": "concurrently \"pnpm --filter ./web dev\" \"flask --app backend.run run\"",
+	"dev-init": "flask --app backend.run init-db && flask --app backend.run create-admin",
+	"dev-reset": "bash reset_db.sh",
+	"dev-mock": "bash mock_data.sh ",
+	"reset": "pnpm run dev-reset && pnpm run dev-init && pnpm run dev-mock"
   }
 }
