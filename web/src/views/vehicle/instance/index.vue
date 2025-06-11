@@ -4,7 +4,7 @@ import type { DataTableColumns, FormInst } from 'naive-ui'
 import { NButton, NPopconfirm, NSpace } from 'naive-ui'
 import TableModal from './components/TableModal.vue'
 import TransferModal from './components/TransferModal.vue'
-import { useVehicleInstanceStore } from '@/store'
+import { useVehicleInstanceStore, useAuthStore } from '@/store' // 引入 useAuthStore
 import { storeToRefs } from 'pinia'
 import { useBoolean, usePermission } from '@/hooks'
 import { useRouter } from 'vue-router'
@@ -17,6 +17,9 @@ const {
   filterModel,
   storeOptions,
 } = storeToRefs(vehicleInstanceStore)
+
+const authStore = useAuthStore() // 初始化 authStore
+const { userInfo } = storeToRefs(authStore) // 获取 userInfo
 
 const { hasPermission } = usePermission()
 const router = useRouter()
@@ -105,27 +108,41 @@ const columns: DataTableColumns<Entity.Vehicle> = [
     align: 'center',
     key: 'actions',
     render: (row) => {
+      const canPerformAdminSuperActions = hasPermission(['admin', 'super'])
+
+      let shouldShowTransferButton = false
+      if (hasPermission(['super'])) {
+        shouldShowTransferButton = true
+      }
+      else if (hasPermission(['admin'])) {
+        if (userInfo.value?.user?.managed_store_id && row.store_id && userInfo.value.user.managed_store_id === row.store_id) {
+          shouldShowTransferButton = true
+        }
+      }
+
       return (
         <NSpace justify="center">
           <NButton
             size="small"
             onClick={() => handleEditTable(row)}
-            disabled={!hasPermission(['admin', 'super'])}
+            disabled={!canPerformAdminSuperActions}
           >
             编辑
           </NButton>
-          <NButton // 新增流转按钮
-            size="small"
-            type="info"
-            onClick={() => handleTransferTable(row)}
-            disabled={!hasPermission(['admin', 'super'])}
-          >
-            流转
-          </NButton>
-          <NPopconfirm onPositiveClick={() => handleDelete(row.vehicle_id)} disabled={!hasPermission(['admin', 'super'])}>
+          {shouldShowTransferButton && (
+            <NButton // 流转按钮，根据条件显示
+              size="small"
+              type="info"
+              onClick={() => handleTransferTable(row)}
+              // 当按钮显示时，用户应有权操作，无需额外 disabled 判断权限
+            >
+              流转
+            </NButton>
+          )}
+          <NPopconfirm onPositiveClick={() => handleDelete(row.vehicle_id)} disabled={!canPerformAdminSuperActions}>
             {{
               default: () => '确认删除',
-              trigger: () => <NButton size="small" type="error" disabled={!hasPermission(['admin', 'super'])}>删除</NButton>,
+              trigger: () => <NButton size="small" type="error" disabled={!canPerformAdminSuperActions}>删除</NButton>,
             }}
           </NPopconfirm>
         </NSpace>
